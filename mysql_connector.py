@@ -3,10 +3,10 @@ import json
 import os
 
 conn = mysql.connector.connect(
-    host='127.0.0.1',
-    port= '3306',
-    password = '1234',
-    user='root'
+    host='#',
+    port= '#',
+    password = '#',
+    user='#'
    )
 
 

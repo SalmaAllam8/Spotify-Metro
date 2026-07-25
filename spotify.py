@@ -1,15 +1,4 @@
-"""
-Expanded Spotify data collector.
 
-IMPORTANT: Do not hardcode your client_id/client_secret in this file if you're
-going to share, commit, or publish it. Use environment variables instead
-(see the bottom of this file for how that works with python-dotenv).
-
-Also note: Audio Features / Audio Analysis / Recommendations / Related Artists
-were restricted by Spotify for apps created/approved after Nov 27, 2024.
-If your app predates that and already had access, they may still work for you.
-This script does NOT rely on them, so it'll work regardless.
-"""
 
 import os
 import json
@@ -19,7 +8,6 @@ from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 load_dotenv()
 # ---- Auth setup -----------------------------------------------------------
-# Use environment variables instead of hardcoding secrets.
 CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:5000/")

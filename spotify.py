@@ -1,5 +1,3 @@
-
-
 import os
 import json
 import time
@@ -7,7 +5,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 load_dotenv()
+
 # ---- Auth setup -----------------------------------------------------------
+# Use environment variables instead of hardcoding secrets.
 CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:5000/")
@@ -139,17 +139,53 @@ def get_saved_albums():
     return out
 
 
-def get_playlists():
+def get_playlist_tracks(playlist_id):
+    """Fetch every track inside a single playlist, with pagination."""
+    out = []
+    offset = 0
+    limit = 100
+    while True:
+        results = sp.playlist_items(
+            playlist_id,
+            limit=limit,
+            offset=offset,
+            fields="items(added_at,track),next",
+        )
+        items = results["items"]
+        if not items:
+            break
+
+        for item in items:
+            track = item.get("track")
+            # Local files / removed tracks can come back as None or missing an id
+            if not track or not track.get("id"):
+                continue
+            enriched = enrich_track(track)
+            enriched["added_at"] = item.get("added_at")
+            out.append(enriched)
+
+        offset += limit
+        if len(items) < limit:
+            break
+
+    return out
+
+
+def get_playlists(include_tracks=True):
     out = []
     results = sp.current_user_playlists(limit=50)
     for pl in results["items"]:
-        out.append({
+        playlist_data = {
             "name": pl["name"],
             "id": pl["id"],
             "owner": pl["owner"]["display_name"],
             "track_count": pl["tracks"]["total"],
             "public": pl.get("public"),
-        })
+            "image_url": pl["images"][0]["url"] if pl.get("images") else None,
+        }
+        if include_tracks:
+            playlist_data["tracks"] = get_playlist_tracks(pl["id"])
+        out.append(playlist_data)
     return out
 
 
@@ -183,8 +219,9 @@ def main():
 
     print("Saved spotify_data.json")
     print(f"- {len(data['recently_played'])} recently played tracks")
-    print(f"- {len(data['top_tracks']['medium_term'])} medium-term top tracks")
-    print(f"- {len(data['top_artists']['medium_term'])} medium-term top artists")
+    for time_range in ["short_term", "medium_term", "long_term"]:
+        print(f"- {time_range}: {len(data['top_tracks'][time_range])} top tracks, "
+              f"{len(data['top_artists'][time_range])} top artists")
     print(f"- {len(data['saved_tracks'])} saved tracks")
     print(f"- {len(data['saved_albums'])} saved albums")
     print(f"- {len(data['playlists'])} playlists")
@@ -192,3 +229,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

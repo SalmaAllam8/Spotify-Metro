@@ -14,10 +14,21 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS artists (
     artist_id   VARCHAR(64) PRIMARY KEY,
     name        VARCHAR(255),
-    genres      JSON,
     popularity  INT,
     followers   INT,
     image_url   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS genres (
+    name  VARCHAR(100) PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS artist_genres (
+    artist_id  VARCHAR(64),
+    genre_name VARCHAR(100),
+    PRIMARY KEY (artist_id, genre_name),
+    FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
+    FOREIGN KEY (genre_name) REFERENCES genres(name)
 );
 
 CREATE TABLE IF NOT EXISTS albums (

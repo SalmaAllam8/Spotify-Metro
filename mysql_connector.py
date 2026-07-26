@@ -1,4 +1,5 @@
 
+
 import os
 import json
 from datetime import datetime
@@ -23,18 +24,29 @@ def parse_spotify_datetime(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def upsert_artist(cursor, artist_id, name, genres, popularity, followers, image_url):
+def upsert_artist(cursor, artist_id, name, popularity, followers, image_url):
     sql = """
-        INSERT INTO artists (artist_id, name, genres, popularity, followers, image_url)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO artists (artist_id, name, popularity, followers, image_url)
+        VALUES (%s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             name = VALUES(name),
-            genres = VALUES(genres),
             popularity = VALUES(popularity),
             followers = VALUES(followers),
             image_url = VALUES(image_url)
     """
-    cursor.execute(sql, (artist_id, name, json.dumps(genres or []), popularity, followers, image_url))
+    cursor.execute(sql, (artist_id, name, popularity, followers, image_url))
+
+
+def link_artist_genres(cursor, artist_id, genres):
+    """Ensure each genre exists, then link it to this artist. Doesn't remove
+    links for genres the artist no longer has (Spotify's genre tags rarely
+    shrink, so this is a reasonable tradeoff for simplicity)."""
+    for genre in (genres or []):
+        cursor.execute("INSERT IGNORE INTO genres (name) VALUES (%s)", (genre,))
+        cursor.execute(
+            "INSERT IGNORE INTO artist_genres (artist_id, genre_name) VALUES (%s, %s)",
+            (artist_id, genre),
+        )
 
 
 def upsert_album(cursor, album_id, name, album_type, release_date, image_url):
@@ -72,10 +84,11 @@ def load_track_with_relations(cursor, track):
     the artist and album rows first so the track's foreign keys are satisfied."""
     if track.get("artist_id"):
         upsert_artist(
-            cursor, track["artist_id"], track["artist"], track.get("artist_genres"),
+            cursor, track["artist_id"], track["artist"],
             track.get("artist_popularity"), track.get("artist_followers"),
             track.get("artist_image_url"),
         )
+        link_artist_genres(cursor, track["artist_id"], track.get("artist_genres"))
     if track.get("album_id"):
         upsert_album(cursor, track["album_id"], track["album"], track.get("album_type"),
                      track.get("album_release_date"), track.get("album_image_url"))
@@ -116,8 +129,9 @@ def load_data(cursor, data):
 
     for time_range, artists in data["top_artists"].items():
         for rank, artist in enumerate(artists, start=1):
-            upsert_artist(cursor, artist["id"], artist["name"], artist.get("genres"),
+            upsert_artist(cursor, artist["id"], artist["name"],
                          artist.get("popularity"), artist.get("followers"), artist.get("image_url"))
+            link_artist_genres(cursor, artist["id"], artist.get("genres"))
             cursor.execute("""
                 INSERT INTO top_artists (user_id, artist_id, time_range, rank_pos)
                 VALUES (%s, %s, %s, %s)

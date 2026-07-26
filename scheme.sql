@@ -23,10 +23,8 @@ CREATE TABLE IF NOT EXISTS artists (
 CREATE TABLE IF NOT EXISTS albums (
     album_id      VARCHAR(64) PRIMARY KEY,
     name          VARCHAR(255),
-    artist_id     VARCHAR(64),
     release_date  VARCHAR(20),
-    image_url     TEXT,
-    FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    image_url     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tracks (

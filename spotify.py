@@ -1,9 +1,10 @@
-
 import os
 import json
 import time
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+from dotenv import load_dotenv
+load_dotenv()
 
 # ---- Auth setup -----------------------------------------------------------
 # Use environment variables instead of hardcoding secrets.
@@ -50,7 +51,6 @@ def enrich_track(track):
         "name": track["name"],
         "id": track["id"],
         "artist": artist_info["name"],
-        "artist_id": artist_id,
         "artist_genres": artist_info.get("genres", []),
         "artist_popularity": artist_info.get("popularity"),
         "artist_followers": artist_info.get("followers", {}).get("total"),
@@ -58,10 +58,6 @@ def enrich_track(track):
             artist_info["images"][0]["url"] if artist_info.get("images") else None
         ),
         "album": track["album"]["name"],
-        "album_id": track["album"]["id"],
-        "album_artist_id": (
-            track["album"]["artists"][0]["id"] if track["album"].get("artists") else None
-        ),
         "album_release_date": track["album"].get("release_date"),
         "album_image_url": (
             track["album"]["images"][0]["url"] if track["album"].get("images") else None

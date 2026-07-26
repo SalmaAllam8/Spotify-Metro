@@ -1,5 +1,4 @@
 
-
 import os
 import json
 from datetime import datetime
@@ -38,16 +37,17 @@ def upsert_artist(cursor, artist_id, name, genres, popularity, followers, image_
     cursor.execute(sql, (artist_id, name, json.dumps(genres or []), popularity, followers, image_url))
 
 
-def upsert_album(cursor, album_id, name, release_date, image_url):
+def upsert_album(cursor, album_id, name, album_type, release_date, image_url):
     sql = """
-        INSERT INTO albums (album_id, name, release_date, image_url)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO albums (album_id, name, album_type, release_date, image_url)
+        VALUES (%s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             name = VALUES(name),
+            album_type = VALUES(album_type),
             release_date = VALUES(release_date),
             image_url = VALUES(image_url)
     """
-    cursor.execute(sql, (album_id, name, release_date, image_url))
+    cursor.execute(sql, (album_id, name, album_type, release_date, image_url))
 
 
 def upsert_track(cursor, track):
@@ -70,9 +70,6 @@ def upsert_track(cursor, track):
 def load_track_with_relations(cursor, track):
     """A track carries its artist_id/album_id fields from enrich_track — insert
     the artist and album rows first so the track's foreign keys are satisfied."""
-    # NOTE: enrich_track() in collect_spotify_data.py doesn't currently include
-    # artist_id directly on the track dict — only artist name. Add that field
-    # there (track['artists'][0]['id']) so this script can link it correctly.
     if track.get("artist_id"):
         upsert_artist(
             cursor, track["artist_id"], track["artist"], track.get("artist_genres"),
@@ -80,7 +77,7 @@ def load_track_with_relations(cursor, track):
             track.get("artist_image_url"),
         )
     if track.get("album_id"):
-        upsert_album(cursor, track["album_id"], track["album"],
+        upsert_album(cursor, track["album_id"], track["album"], track.get("album_type"),
                      track.get("album_release_date"), track.get("album_image_url"))
     upsert_track(cursor, track)
 

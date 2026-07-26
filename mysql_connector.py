@@ -1,33 +1,178 @@
-import mysql.connector 
-import json
+
+
 import os
+import json
+from datetime import datetime
+import mysql.connector
+from dotenv import load_dotenv
 
-conn = mysql.connector.connect(
-    host='#',
-    port= '#',
-    password = '#',
-    user='#'
-   )
+load_dotenv()
+
+DB_CONFIG = {
+    "host": os.environ.get("MYSQL_HOST"),
+    "port": os.environ.get("MYSQL_PORT", 3306),
+    "user": os.environ.get("MYSQL_USER"),
+    "password": os.environ.get("MYSQL_PASSWORD"),
+    "database": os.environ.get("MYSQL_DATABASE", "spotify_data"),
+}
 
 
-with open('recent_tracks.json') as json_file:
-    tracks = json.load(json_file)
+def parse_spotify_datetime(value):
+    """Spotify gives ISO 8601 timestamps like '2026-07-20T12:34:56.789Z'."""
+    if not value:
+        return None
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
-cursor = conn.cursor()
 
-for track in tracks:
-    sql = """INSERT INTO yourhistory.tracks (name_, artist,genres, album, duration_ms) 
-             VALUES (%s, %s, %s, %s,%s)"""
-    values = (
-        track['name'],
-        track['artist'],
-        track['genres'],
-        track['album'],
-        track['duration_ms']
-    )
-    cursor.execute(sql, values)
+def upsert_artist(cursor, artist_id, name, genres, popularity, followers, image_url):
+    sql = """
+        INSERT INTO artists (artist_id, name, genres, popularity, followers, image_url)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            genres = VALUES(genres),
+            popularity = VALUES(popularity),
+            followers = VALUES(followers),
+            image_url = VALUES(image_url)
+    """
+    cursor.execute(sql, (artist_id, name, json.dumps(genres or []), popularity, followers, image_url))
 
-conn.commit()
-cursor.close()
-conn.close()
-os.remove("recent_tracks.json")
+
+def upsert_album(cursor, album_id, name, release_date, image_url):
+    sql = """
+        INSERT INTO albums (album_id, name, release_date, image_url)
+        VALUES (%s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            release_date = VALUES(release_date),
+            image_url = VALUES(image_url)
+    """
+    cursor.execute(sql, (album_id, name, release_date, image_url))
+
+
+def upsert_track(cursor, track):
+    sql = """
+        INSERT INTO tracks (track_id, name, artist_id, album_id, duration_ms,
+                             popularity, explicit, preview_url, external_url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            name = VALUES(name),
+            popularity = VALUES(popularity),
+            preview_url = VALUES(preview_url)
+    """
+    cursor.execute(sql, (
+        track["id"], track["name"], track.get("artist_id"), track.get("album_id"),
+        track["duration_ms"], track.get("popularity"), track.get("explicit"),
+        track.get("preview_url"), track.get("external_url"),
+    ))
+
+
+def load_track_with_relations(cursor, track):
+    """A track carries its artist_id/album_id fields from enrich_track — insert
+    the artist and album rows first so the track's foreign keys are satisfied."""
+    # NOTE: enrich_track() in collect_spotify_data.py doesn't currently include
+    # artist_id directly on the track dict — only artist name. Add that field
+    # there (track['artists'][0]['id']) so this script can link it correctly.
+    if track.get("artist_id"):
+        upsert_artist(
+            cursor, track["artist_id"], track["artist"], track.get("artist_genres"),
+            track.get("artist_popularity"), track.get("artist_followers"),
+            track.get("artist_image_url"),
+        )
+    if track.get("album_id"):
+        upsert_album(cursor, track["album_id"], track["album"],
+                     track.get("album_release_date"), track.get("album_image_url"))
+    upsert_track(cursor, track)
+
+
+def load_data(cursor, data):
+    # --- user ---
+    user = data["user_profile"]
+    cursor.execute("""
+        INSERT INTO users (user_id, display_name, email, country, followers,
+                            profile_image_url, external_url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name), followers = VALUES(followers),
+            profile_image_url = VALUES(profile_image_url)
+    """, (user["id"], user["display_name"], user.get("email"), user.get("country"),
+          user.get("followers"), user.get("profile_image_url"), user.get("external_url")))
+    user_id = user["id"]
+
+    # --- recently played ---
+    for track in data["recently_played"]:
+        load_track_with_relations(cursor, track)
+        cursor.execute("""
+            INSERT IGNORE INTO recently_played (user_id, track_id, played_at)
+            VALUES (%s, %s, %s)
+        """, (user_id, track["id"], parse_spotify_datetime(track["played_at"])))
+
+    # --- top tracks / top artists (per time range) ---
+    for time_range, tracks in data["top_tracks"].items():
+        for rank, track in enumerate(tracks, start=1):
+            load_track_with_relations(cursor, track)
+            cursor.execute("""
+                INSERT INTO top_tracks (user_id, track_id, time_range, rank_pos)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE rank_pos = VALUES(rank_pos)
+            """, (user_id, track["id"], time_range, rank))
+
+    for time_range, artists in data["top_artists"].items():
+        for rank, artist in enumerate(artists, start=1):
+            upsert_artist(cursor, artist["id"], artist["name"], artist.get("genres"),
+                         artist.get("popularity"), artist.get("followers"), artist.get("image_url"))
+            cursor.execute("""
+                INSERT INTO top_artists (user_id, artist_id, time_range, rank_pos)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE rank_pos = VALUES(rank_pos)
+            """, (user_id, artist["id"], time_range, rank))
+
+    # --- saved tracks ---
+    for track in data["saved_tracks"]:
+        load_track_with_relations(cursor, track)
+        cursor.execute("""
+            INSERT IGNORE INTO saved_tracks (user_id, track_id, added_at)
+            VALUES (%s, %s, %s)
+        """, (user_id, track["id"], parse_spotify_datetime(track["added_at"])))
+
+    # --- playlists + their tracks ---
+    for pl in data["playlists"]:
+        cursor.execute("""
+            INSERT INTO playlists (playlist_id, user_id, name, owner, track_count,
+                                    is_public, image_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                name = VALUES(name), track_count = VALUES(track_count)
+        """, (pl["id"], user_id, pl["name"], pl["owner"], pl["track_count"],
+              pl.get("public"), pl.get("image_url")))
+
+        for track in pl.get("tracks", []):
+            load_track_with_relations(cursor, track)
+            cursor.execute("""
+                INSERT IGNORE INTO playlist_tracks (playlist_id, track_id, added_at)
+                VALUES (%s, %s, %s)
+            """, (pl["id"], track["id"], parse_spotify_datetime(track.get("added_at"))))
+
+
+def main():
+    with open("spotify_data.json") as f:
+        data = json.load(f)
+
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    try:
+        load_data(cursor, data)
+        conn.commit()
+        print("Data loaded successfully.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error loading data, rolled back: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+if __name__ == "__main__":
+    main()

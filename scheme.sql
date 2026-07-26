@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS artists (
 CREATE TABLE IF NOT EXISTS albums (
     album_id      VARCHAR(64) PRIMARY KEY,
     name          VARCHAR(255),
-    release_date  VARCHAR(20),
+    release_date  DATE,
     image_url     TEXT
 );
 

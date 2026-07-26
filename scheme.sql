@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS albums (
     album_id      VARCHAR(64) PRIMARY KEY,
     name          VARCHAR(255),
     album_type    VARCHAR(20),
-    release_date  VARCHAR(20),
+    release_date  Date,
     image_url     TEXT
 );
 

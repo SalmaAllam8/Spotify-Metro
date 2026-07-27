@@ -1,11 +1,10 @@
 
-
 import os
 import json
 import time
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from dotenv import load_dotenv
+from  dotenv import load_dotenv
 load_dotenv()
 # ---- Auth setup -----------------------------------------------------------
 # Use environment variables instead of hardcoding secrets.
@@ -87,7 +86,10 @@ def get_recently_played(limit=50):
     results = sp.current_user_recently_played(limit=limit)
     out = []
     for item in results["items"]:
-        enriched = enrich_track(item["track"])
+        track = item["track"]
+        if track.get("type") != "track":
+            continue
+        enriched = enrich_track(track)
         enriched["played_at"] = item["played_at"]
         out.append(enriched)
     return out
@@ -173,8 +175,9 @@ def get_playlist_tracks(playlist_id):
 
         for item in items:
             track = item.get("track")
-            # Local files / removed tracks can come back as None or missing an id
-            if not track or not track.get("id"):
+            # Skip local files, removed tracks, and podcast episodes — episodes
+            # have a different shape (no 'artists' field) and would crash enrich_track
+            if not track or not track.get("id") or track.get("type") != "track":
                 continue
             enriched = enrich_track(track)
             enriched["added_at"] = item.get("added_at")

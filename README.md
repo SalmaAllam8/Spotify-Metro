@@ -6,6 +6,11 @@ The mysql_connector.py inserts the data from the json file into mysql database a
 The main.py uses flask mysqldb to display the mysql select statments in the index.html file 
 
 The output (which also the redirect link for my spotify app)
+# Data Modeling
+<img width="4608" height="2620" alt="Untitled diagram_2026-07-27T00_58_52 477Z" src="https://github.com/user-attachments/assets/38f8909a-0c31-4b5a-9f07-02787755eced" />
+<img width="1567" height="1004" alt="image" src="https://github.com/user-attachments/assets/f38cc26c-c903-4775-96bc-6fab4ed8b84c" />
+
+
 
 ## Index.html 
 

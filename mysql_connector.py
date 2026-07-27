@@ -1,5 +1,4 @@
 
-
 import os
 import json
 from datetime import datetime
@@ -64,35 +63,45 @@ def upsert_album(cursor, album_id, name, album_type, release_date, image_url):
 
 def upsert_track(cursor, track):
     sql = """
-        INSERT INTO tracks (track_id, name, artist_id, album_id, duration_ms,
+        INSERT INTO tracks (track_id, name, album_id, duration_ms,
                              popularity, explicit, preview_url, external_url)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             popularity = VALUES(popularity),
             preview_url = VALUES(preview_url)
     """
     cursor.execute(sql, (
-        track["id"], track["name"], track.get("artist_id"), track.get("album_id"),
+        track["id"], track["name"], track.get("album_id"),
         track["duration_ms"], track.get("popularity"), track.get("explicit"),
         track.get("preview_url"), track.get("external_url"),
     ))
 
 
+def link_artists(cursor, junction_table, fk_column, entity_id, artists):
+    """Upsert each artist in the list, link their genres, and link them to
+    the given track/album via the junction table, preserving their order
+    (position 0 = primary/main artist)."""
+    for position, artist in enumerate(artists or []):
+        upsert_artist(cursor, artist["id"], artist["name"],
+                     artist.get("popularity"), artist.get("followers"), artist.get("image_url"))
+        link_artist_genres(cursor, artist["id"], artist.get("genres"))
+        cursor.execute(f"""
+            INSERT IGNORE INTO {junction_table} ({fk_column}, artist_id, position)
+            VALUES (%s, %s, %s)
+        """, (entity_id, artist["id"], position))
+
+
 def load_track_with_relations(cursor, track):
-    """A track carries its artist_id/album_id fields from enrich_track — insert
-    the artist and album rows first so the track's foreign keys are satisfied."""
-    if track.get("artist_id"):
-        upsert_artist(
-            cursor, track["artist_id"], track["artist"],
-            track.get("artist_popularity"), track.get("artist_followers"),
-            track.get("artist_image_url"),
-        )
-        link_artist_genres(cursor, track["artist_id"], track.get("artist_genres"))
+    """A track carries its artists/album fields from enrich_track — insert
+    the album and all artists first so the track's foreign keys are satisfied."""
     if track.get("album_id"):
         upsert_album(cursor, track["album_id"], track["album"], track.get("album_type"),
                      track.get("album_release_date"), track.get("album_image_url"))
+        link_artists(cursor, "album_artists", "album_id", track["album_id"],
+                    track.get("album_artists"))
     upsert_track(cursor, track)
+    link_artists(cursor, "track_artists", "track_id", track["id"], track.get("artists"))
 
 
 def load_data(cursor, data):
@@ -149,13 +158,13 @@ def load_data(cursor, data):
     # --- playlists + their tracks ---
     for pl in data["playlists"]:
         cursor.execute("""
-            INSERT INTO playlists (playlist_id, user_id, name, owner, track_count,
-                                    is_public, image_url)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO playlists (playlist_id, user_id, name, owner_id, owner_name,
+                                    track_count, is_public, image_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name), track_count = VALUES(track_count)
-        """, (pl["id"], user_id, pl["name"], pl["owner"], pl["track_count"],
-              pl.get("public"), pl.get("image_url")))
+        """, (pl["id"], user_id, pl["name"], pl.get("owner_id"), pl.get("owner_name"),
+              pl["track_count"], pl.get("public"), pl.get("image_url")))
 
         for track in pl.get("tracks", []):
             load_track_with_relations(cursor, track)
@@ -187,3 +196,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

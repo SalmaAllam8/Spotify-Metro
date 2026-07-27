@@ -35,22 +35,38 @@ CREATE TABLE IF NOT EXISTS albums (
     album_id      VARCHAR(64) PRIMARY KEY,
     name          VARCHAR(255),
     album_type    VARCHAR(20),
-    release_date  Date,
+    release_date  DATE,
     image_url     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS album_artists (
+    album_id   VARCHAR(64),
+    artist_id  VARCHAR(64),
+    position   INT,  -- order the artist appears in, 0 = primary/main artist
+    PRIMARY KEY (album_id, artist_id),
+    FOREIGN KEY (album_id) REFERENCES albums(album_id),
+    FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
 );
 
 CREATE TABLE IF NOT EXISTS tracks (
     track_id      VARCHAR(64) PRIMARY KEY,
     name          VARCHAR(255),
-    artist_id     VARCHAR(64),
     album_id      VARCHAR(64),
     duration_ms   INT,
     popularity    INT,
     explicit      BOOLEAN,
     preview_url   TEXT,
     external_url  TEXT,
-    FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
     FOREIGN KEY (album_id) REFERENCES albums(album_id)
+);
+
+CREATE TABLE IF NOT EXISTS track_artists (
+    track_id   VARCHAR(64),
+    artist_id  VARCHAR(64),
+    position   INT,  -- order the artist appears in, 0 = primary/main artist
+    PRIMARY KEY (track_id, artist_id),
+    FOREIGN KEY (track_id) REFERENCES tracks(track_id),
+    FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
 );
 
 -- A user's listening history: same track can appear many times at different timestamps
@@ -96,7 +112,8 @@ CREATE TABLE IF NOT EXISTS playlists (
     playlist_id  VARCHAR(64) PRIMARY KEY,
     user_id      VARCHAR(64),
     name         VARCHAR(255),
-    owner        VARCHAR(255),
+    owner_id     VARCHAR(64),
+    owner_name   VARCHAR(255),
     track_count  INT,
     is_public    BOOLEAN,
     image_url    TEXT,

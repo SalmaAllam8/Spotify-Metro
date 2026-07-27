@@ -5,7 +5,8 @@ import json
 import time
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-
+from dotenv import load_dotenv
+load_dotenv()
 # ---- Auth setup -----------------------------------------------------------
 # Use environment variables instead of hardcoding secrets.
 CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
@@ -42,25 +43,34 @@ def get_artist_info(artist_id):
     return _artist_cache[artist_id]
 
 
-def enrich_track(track):
-    """Pull a richer set of fields for a single track object."""
-    artist_id = track["artists"][0]["id"]
-    artist_info = get_artist_info(artist_id)
+def enrich_artists(artist_refs):
+    """Given Spotify's list of {id, name, ...} artist stubs (from a track or
+    album), fetch full details for each and return them in the same order."""
+    out = []
+    for ref in artist_refs:
+        info = get_artist_info(ref["id"])
+        out.append({
+            "id": ref["id"],
+            "name": info["name"],
+            "genres": info.get("genres", []),
+            "popularity": info.get("popularity"),
+            "followers": info.get("followers", {}).get("total"),
+            "image_url": info["images"][0]["url"] if info.get("images") else None,
+        })
+    return out
 
+
+def enrich_track(track):
+    """Pull a richer set of fields for a single track object, including every
+    artist on the track and every artist on its album (not just the first)."""
     return {
         "name": track["name"],
         "id": track["id"],
-        "artist": artist_info["name"],
-        "artist_id": artist_id,
-        "artist_genres": artist_info.get("genres", []),
-        "artist_popularity": artist_info.get("popularity"),
-        "artist_followers": artist_info.get("followers", {}).get("total"),
-        "artist_image_url": (
-            artist_info["images"][0]["url"] if artist_info.get("images") else None
-        ),
+        "artists": enrich_artists(track["artists"]),
         "album": track["album"]["name"],
         "album_id": track["album"]["id"],
         "album_type": track["album"].get("album_type"),
+        "album_artists": enrich_artists(track["album"].get("artists", [])),
         "album_release_date": track["album"].get("release_date"),
         "album_image_url": (
             track["album"]["images"][0]["url"] if track["album"].get("images") else None
@@ -133,10 +143,13 @@ def get_saved_albums():
     for item in results["items"]:
         album = item["album"]
         out.append({
+            "id": album["id"],
             "name": album["name"],
-            "artist": album["artists"][0]["name"],
+            "album_type": album.get("album_type"),
+            "artists": enrich_artists(album.get("artists", [])),
             "release_date": album.get("release_date"),
             "total_tracks": album.get("total_tracks"),
+            "image_url": album["images"][0]["url"] if album.get("images") else None,
             "added_at": item["added_at"],
         })
     return out
@@ -181,7 +194,8 @@ def get_playlists(include_tracks=True):
         playlist_data = {
             "name": pl["name"],
             "id": pl["id"],
-            "owner": pl["owner"]["display_name"],
+            "owner_id": pl["owner"]["id"],
+            "owner_name": pl["owner"].get("display_name"),
             "track_count": pl["tracks"]["total"],
             "public": pl.get("public"),
             "image_url": pl["images"][0]["url"] if pl.get("images") else None,

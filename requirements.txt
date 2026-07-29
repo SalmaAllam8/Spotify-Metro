@@ -1,0 +1,4 @@
+flask
+python-dotenv
+spotipy
+mysql-connector-python

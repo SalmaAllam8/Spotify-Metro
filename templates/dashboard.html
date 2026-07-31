@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Listening Log{% endblock %}
+
+{% block content %}
+<main class="dashboard">
+    <header class="dash-header">
+        <p class="eyebrow">Signed in as</p>
+        <h1>{{ data.display_name }}</h1>
+    </header>
+
+    <section class="stat-row">
+        <div class="stat-card">
+            <span class="stat-value">{{ data.total_tracks }}</span>
+            <span class="stat-label">tracks saved</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ data.total_hours }}</span>
+            <span class="stat-label">hours of music</span>
+        </div>
+        <div class="stat-card stat-card--placeholder">
+            <span class="stat-value">—</span>
+            <span class="stat-label">charts render here next</span>
+        </div>
+    </section>
+
+    <section class="track-table">
+        <h2>Top tracks</h2>
+        <table>
+            <thead>
+                <tr><th>Track</th><th>Artist</th><th>Popularity</th></tr>
+            </thead>
+            <tbody>
+                {% for track in data.top_tracks %}
+                <tr>
+                    <td>{{ track.name }}</td>
+                    <td class="muted">{{ track.artist }}</td>
+                    <td class="mono">{{ track.popularity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <p class="fine-print">This is placeholder data — real Spotify + MySQL data gets wired in next.</p>
+</main>
+{% endblock %}

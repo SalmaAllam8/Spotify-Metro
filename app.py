@@ -13,7 +13,7 @@ from spotipy.cache_handler import FlaskSessionCacheHandler
 from flask import Flask, render_template, redirect, url_for, session, request
 from dotenv import load_dotenv
 
-from collect_spotify_data import SCOPES, get_user_profile, get_top_tracks
+from spotify import SCOPES, get_user_profile, get_top_tracks
 
 load_dotenv()
 

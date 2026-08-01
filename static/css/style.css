@@ -48,71 +48,140 @@ body.landing-page {
     height: 0;
 }
 
-.speaker-rings {
+.speaker-body {
     position: absolute;
     top: 50%;
     left: 50%;
     width: 220px;
     transform: translate(-50%, -50%);
-    fill: none;
-    stroke: #86EFAC;
-    stroke-width: 1.5;
-    opacity: 0;
-    animation: center-fade-in 1.8s ease-out 0.4s forwards;
 }
 
-.speaker-rings .speaker-cone { stroke: #4ADE80; }
-.speaker-rings .speaker-dome { fill: #BBF7D0; stroke: none; }
+.centerpiece--secondary {
+    top: auto;
+    left: auto;
+    bottom: 9%;
+    right: 7%;
+}
 
-.spiral-arm {
+.speaker-body--small {
+    position: static;
+    width: 130px;
+    transform: none;
+}
+
+.ring {
+    opacity: 0;
+    transform: scale(0.3);
+    transform-origin: 100px 100px;
+    animation: ring-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.ring--1 { fill: #86EFAC; stroke: #14532D; stroke-width: 3; animation-delay: 0.2s; animation-duration: 1.2s; }
+.ring--2 { fill: #15803D; animation-delay: 1.3s; }
+.ring--3 { fill: #86EFAC; animation-delay: 1.6s; }
+.ring--4 { fill: #0A0A0A; stroke: #FFFFFF; stroke-width: 2; animation-delay: 1.9s; }
+.ring--5 { fill: url(#scatterGrad); animation-delay: 2.15s; }
+.ring--dot { fill: #F0FDF4; animation-delay: 2.35s; }
+
+.speaker-body--small .ring { animation-name: ring-pop-small; animation-duration: 0.6s; }
+.speaker-body--small .ring--1 { animation-delay: 4.6s; animation-duration: 0.9s; }
+.speaker-body--small .ring--2 { animation-delay: 5.4s; }
+.speaker-body--small .ring--3 { animation-delay: 5.6s; }
+.speaker-body--small .ring--4 { animation-delay: 5.8s; }
+.speaker-body--small .ring--5 { animation-delay: 5.95s; }
+.speaker-body--small .ring--dot { animation-delay: 6.1s; }
+
+@keyframes ring-pop {
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ring-pop-small {
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- halftone dot ring ---------- */
+
+.halftone-ring {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 340px;
-    stroke: #22C55E;
-    stroke-width: 1.4;
+    width: 220px;
+    transform: translate(-50%, -50%);
+    fill: #86EFAC;
+    opacity: 0;
+    animation: ring-in 1.8s ease-out 0.9s forwards;
+}
+
+@keyframes ring-in {
+    to { opacity: 1; }
+}
+
+/* ---------- organic tendrils (Euler-spiral curls) ---------- */
+
+.tendril {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 520px;
+    stroke-width: 1.6;
     fill: none;
     stroke-linecap: round;
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(0deg) scale(0.3);
     transform-origin: center;
 }
 
-.spiral-arm--1 { animation: arm-in 2.6s ease-out 1.0s forwards; transform: translate(-50%, -50%) rotate(0deg) scale(0.3); }
-.spiral-arm--2 { animation: arm-in 2.6s ease-out 1.6s forwards; stroke: #4ADE80; }
-.spiral-arm--3 { animation: arm-in 2.6s ease-out 2.2s forwards; stroke: #86EFAC; }
+.tendril--1 { stroke: #22C55E; animation: tendril-in-1 2.8s ease-out 2.6s forwards; }
+.tendril--2 { stroke: #4ADE80; animation: tendril-in-2 2.8s ease-out 3.3s forwards; }
+.tendril--3 { stroke: #86EFAC; animation: tendril-in-3 2.8s ease-out 4.0s forwards; }
 
-@keyframes center-fade-in {
-    to { opacity: 0.4; }
+@keyframes tendril-in-1 {
+    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.4); }
+    100% { opacity: 0.5; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+}
+@keyframes tendril-in-2 {
+    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(130deg) scale(0.4); }
+    100% { opacity: 0.5; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
+}
+@keyframes tendril-in-3 {
+    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(250deg) scale(0.4); }
+    100% { opacity: 0.5; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
 }
 
-@keyframes arm-in {
-    0%   { opacity: 0; }
-    100% { opacity: 0.3; }
+/* ---------- ink drips ---------- */
+
+.ink-drips {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 220px;
+    transform: translate(-50%, -50%);
 }
 
-.spiral-arm--1 { animation-name: arm-in-1; }
-.spiral-arm--2 { animation-name: arm-in-2; }
-.spiral-arm--3 { animation-name: arm-in-3; }
+.drip {
+    fill: #14532D;
+    opacity: 0;
+    transform: scaleY(0);
+    transform-box: fill-box;
+    transform-origin: top center;
+    animation: drip-in 0.9s cubic-bezier(0.22, 0.9, 0.35, 1) forwards;
+}
 
-@keyframes arm-in-1 {
-    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.3); }
-    100% { opacity: 0.3; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
-}
-@keyframes arm-in-2 {
-    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(130deg) scale(0.3); }
-    100% { opacity: 0.3; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
-}
-@keyframes arm-in-3 {
-    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(250deg) scale(0.3); }
-    100% { opacity: 0.3; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
+.drip--1 { animation-delay: 2.0s; }
+.drip--2 { animation-delay: 2.15s; fill: #16A34A; }
+.drip--3 { animation-delay: 2.3s; }
+
+@keyframes drip-in {
+    to { opacity: 0.5; transform: scaleY(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .speaker-rings { animation: none; opacity: 0.4; }
-    .spiral-arm--1 { animation: none; opacity: 0.3; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
-    .spiral-arm--2 { animation: none; opacity: 0.3; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
-    .spiral-arm--3 { animation: none; opacity: 0.3; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
+    .ring { animation: none; opacity: 1; transform: scale(1); }
+    .speaker-body--small { animation: none; opacity: 1; }
+    .halftone-ring { animation: none; opacity: 1; }
+    .drip { animation: none; opacity: 0.5; transform: scaleY(1); }
+    .tendril--1 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+    .tendril--2 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
+    .tendril--3 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
 }
 
 .flying-note {
@@ -122,7 +191,7 @@ body.landing-page {
     color: #BBF7D0;
     opacity: 0;
     offset-path: path("M 100 400 C 250 200, 500 550, 700 300 S 1100 250, 1000 500 S 500 650, 300 500 S 50 450, 100 400");
-    animation: fly 22s linear infinite, note-fade-in 1.5s ease-out 3s forwards;
+    animation: fly 22s linear infinite, note-fade-in 1.5s ease-out 6.8s forwards;
 }
 
 @keyframes fly {

@@ -46,6 +46,7 @@ body.landing-page {
     left: 50%;
     width: 0;
     height: 0;
+    transform: scale(1.5);
 }
 
 .speaker-body {
@@ -76,12 +77,19 @@ body.landing-page {
     animation: ring-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-.ring--1 { fill: #86EFAC; stroke: #14532D; stroke-width: 3; animation-delay: 0.2s; animation-duration: 1.2s; }
-.ring--2 { fill: #15803D; animation-delay: 1.3s; }
-.ring--3 { fill: #86EFAC; animation-delay: 1.6s; }
+.ring--1 { fill: #4ADE80; stroke: #0F3D22; stroke-width: 3; animation-delay: 0.2s; animation-duration: 1.2s; }
+.ring--2 { fill: #14532D; animation-delay: 1.3s; }
+.ring--3 { fill: #4ADE80; animation-delay: 1.6s; }
 .ring--4 { fill: #0A0A0A; stroke: #FFFFFF; stroke-width: 2; animation-delay: 1.9s; }
 .ring--5 { fill: url(#scatterGrad); animation-delay: 2.15s; }
-.ring--dot { fill: #F0FDF4; animation-delay: 2.35s; }
+.ring--dot { fill: #DCFCE7; animation-delay: 2.35s; }
+
+/* speaker2: duplicate black/gradient/dot cluster, own transform-origin since
+   it's centered at a different point (92,68) than the main cluster (100,100) */
+.ring--s2 { transform-origin: 92px 68px; }
+.ring--4.ring--s2 { animation-delay: 3.0s; }
+.ring--5.ring--s2 { animation-delay: 3.2s; }
+.ring--dot.ring--s2 { animation-delay: 3.4s; }
 
 .speaker-body--small .ring { animation-name: ring-pop-small; animation-duration: 0.6s; }
 .speaker-body--small .ring--1 { animation-delay: 4.6s; animation-duration: 0.9s; }
@@ -90,6 +98,9 @@ body.landing-page {
 .speaker-body--small .ring--4 { animation-delay: 5.8s; }
 .speaker-body--small .ring--5 { animation-delay: 5.95s; }
 .speaker-body--small .ring--dot { animation-delay: 6.1s; }
+.speaker-body--small .ring--4.ring--s2 { animation-delay: 6.35s; }
+.speaker-body--small .ring--5.ring--s2 { animation-delay: 6.5s; }
+.speaker-body--small .ring--dot.ring--s2 { animation-delay: 6.65s; }
 
 @keyframes ring-pop {
     to { opacity: 1; transform: scale(1); }
@@ -133,6 +144,12 @@ body.landing-page {
 .tendril--1 { stroke: #22C55E; animation: tendril-in-1 2.8s ease-out 2.6s forwards; }
 .tendril--2 { stroke: #4ADE80; animation: tendril-in-2 2.8s ease-out 3.3s forwards; }
 .tendril--3 { stroke: #86EFAC; animation: tendril-in-3 2.8s ease-out 4.0s forwards; }
+
+/* mirror companions: same rotation as their partner (so they share the same
+   base point) but curl the opposite way, appearing slightly after */
+.tendril--1b { stroke: #22C55E; animation: tendril-in-1 2.8s ease-out 2.75s forwards; }
+.tendril--2b { stroke: #4ADE80; animation: tendril-in-2 2.8s ease-out 3.45s forwards; }
+.tendril--3b { stroke: #86EFAC; animation: tendril-in-3 2.8s ease-out 4.15s forwards; }
 
 @keyframes tendril-in-1 {
     0%   { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.4); }
@@ -182,6 +199,9 @@ body.landing-page {
     .tendril--1 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
     .tendril--2 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
     .tendril--3 { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
+    .tendril--1b { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+    .tendril--2b { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(130deg) scale(1); }
+    .tendril--3b { animation: none; opacity: 0.5; transform: translate(-50%, -50%) rotate(250deg) scale(1); }
 }
 
 .flying-note {

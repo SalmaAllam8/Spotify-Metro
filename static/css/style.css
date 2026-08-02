@@ -32,12 +32,27 @@ body.landing-page {
     min-height: 100vh;
 }
 
+.page-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    min-height: 100vh;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
 .spiral-bg {
-    position: fixed;
-    inset: 0;
+    position: relative;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
+    flex: 1 1 0;
+    min-width: 320px;
+    max-width: 620px;
+    height: 760px;
 }
 
 .centerpiece {
@@ -69,6 +84,7 @@ body.landing-page {
 .ring--1.ring--bc2 { animation-delay: 0.6s; }
 .ring--2.ring--bc2 { animation-delay: 0.85s; }
 .ring--3.ring--bc2 { animation-delay: 1.05s; }
+.ring--2.ring--bc2.ring--bc2-inner { animation-delay: 1.25s; }
 
 .centerpiece--secondary {
     top: auto;
@@ -253,7 +269,7 @@ body.landing-page {
     height: 28px;
     color: #BBF7D0;
     opacity: 0;
-    offset-path: path("M 100 400 C 250 200, 500 550, 700 300 S 1100 250, 1000 500 S 500 650, 300 500 S 50 450, 100 400");
+    offset-path: path("M 45 180 C 112.5 90, 225 247.5, 315 135 S 495 112.5, 450 225 S 225 292.5, 135 225 S 22.5 202.5, 45 180");
     animation: fly 22s linear infinite, note-fade-in 1.5s ease-out 9.6s forwards;
 }
 
@@ -273,15 +289,16 @@ body.landing-page {
 .hero {
     position: relative;
     z-index: 1;
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 6rem 1.5rem 4rem;
-    text-align: center;
+    padding: 2rem 0;
+    text-align: left;
+    flex: 1 1 0;
+    min-width: 320px;
+    max-width: 560px;
 }
 
 .eq {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-end;
     gap: 5px;
     height: 56px;
@@ -336,7 +353,7 @@ h1 {
     color: var(--text-muted);
     font-size: 1.05rem;
     max-width: 460px;
-    margin: 0 auto 2.5rem;
+    margin: 0 0 2.5rem;
 }
 
 .btn-spotify {
@@ -451,3 +468,10 @@ tr:last-child td { border-bottom: none; }
 
 .muted { color: var(--text-muted); }
 .mono { font-family: var(--font-mono); }
+
+@media (max-width: 780px) {
+    .page-layout { flex-direction: column; gap: 0; }
+    .hero { text-align: center; }
+    .lede { margin: 0 auto 2.5rem; }
+    .eq { justify-content: center; }
+}

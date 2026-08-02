@@ -1,46 +1,99 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Listening Log{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
 
 {% block content %}
 <main class="dashboard">
-    <header class="dash-header">
-        <p class="eyebrow">Signed in as</p>
-        <h1>{{ data.display_name }}</h1>
-    </header>
 
-    <section class="stat-row">
-        <div class="stat-card">
-            <span class="stat-value">{{ data.total_tracks }}</span>
-            <span class="stat-label">tracks saved</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-value">{{ data.total_hours }}</span>
-            <span class="stat-label">hours of music</span>
-        </div>
-        <div class="stat-card stat-card--placeholder">
-            <span class="stat-value">—</span>
-            <span class="stat-label">charts render here next</span>
-        </div>
-    </section>
+    <div class="range-toggle" role="tablist" aria-label="Time range">
+        <button type="button" class="range-btn" data-range="long_term">Long term</button>
+        <button type="button" class="range-btn is-active" data-range="medium_term">Medium term</button>
+        <button type="button" class="range-btn" data-range="short_term">Short term</button>
+    </div>
 
-    <section class="track-table">
-        <h2>Top tracks</h2>
-        <table>
-            <thead>
-                <tr><th>Track</th><th>Artist</th><th>Popularity</th></tr>
-            </thead>
-            <tbody>
-                {% for track in data.top_tracks %}
-                <tr>
-                    <td>{{ track.name }}</td>
-                    <td class="muted">{{ track.artist }}</td>
-                    <td class="mono">{{ track.popularity }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
+    <div class="hub">
+        <a href="{{ url_for('dashboard') }}" class="hub-card glass-card">
+            <span class="hub-card-label">Your Favourite Artists</span>
+            <span class="hub-card-value">{{ data.favourite_artist }}</span>
+        </a>
 
-    <p class="fine-print">This is placeholder data — real Spotify + MySQL data gets wired in next.</p>
+        <a href="{{ url_for('dashboard') }}" class="hub-card glass-card">
+            <span class="hub-card-label">Your Favourite Genre</span>
+            <span class="hub-card-value">{{ data.favourite_genre }}</span>
+        </a>
+
+        <div class="profile-center">
+            <div class="profile-pic-wrap">
+                {% if data.profile_image_url %}
+                    <img src="{{ data.profile_image_url }}" alt="{{ data.display_name }}" class="profile-pic">
+                {% else %}
+                    <div class="profile-pic profile-pic--placeholder"></div>
+                {% endif %}
+            </div>
+            <div class="profile-name-row">
+                <span class="profile-name">{{ data.display_name }}</span>
+                {% if data.country_flag %}
+                    <span class="profile-flag" title="Country">{{ data.country_flag }}</span>
+                {% endif %}
+            </div>
+            {% if data.follower_count is not none %}
+                <span class="profile-followers">{{ data.follower_count }} followers</span>
+            {% endif %}
+        </div>
+
+        <a href="{{ url_for('dashboard') }}" class="hub-card glass-card">
+            <span class="hub-card-label">Your Listening Activity</span>
+            <span class="hub-card-value">See trends</span>
+        </a>
+
+        <a href="{{ url_for('dashboard') }}" class="hub-card glass-card">
+            <span class="hub-card-label">Your Playlists</span>
+            <span class="hub-card-value">{{ data.playlist_count }} playlists</span>
+        </a>
+    </div>
+
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <span class="kpi-label">Listening Hours</span>
+            <span class="kpi-value" data-kpi="hours">—</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Unique Artists</span>
+            <span class="kpi-value" data-kpi="unique_artists">—</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Repeat Rate</span>
+            <span class="kpi-value" data-kpi="repeat_rate">—</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Mainstream Score</span>
+            <span class="kpi-value" data-kpi="mainstream_score">—</span>
+        </div>
+    </div>
+
+    <p class="fine-print">The four cards above the profile link to dedicated dashboards — not built yet, so they loop back here for now.</p>
 </main>
+
+<script>
+    const kpisByRange = {{ data.kpis_by_range | tojson }};
+
+    function renderKpis(rangeKey) {
+        const kpis = kpisByRange[rangeKey];
+        if (!kpis) return;
+        document.querySelector('[data-kpi="hours"]').textContent = kpis.hours + ' hrs';
+        document.querySelector('[data-kpi="unique_artists"]').textContent = kpis.unique_artists;
+        document.querySelector('[data-kpi="repeat_rate"]').textContent = kpis.repeat_rate + '%';
+        document.querySelector('[data-kpi="mainstream_score"]').textContent = kpis.mainstream_score;
+    }
+
+    document.querySelectorAll('.range-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.range-btn').forEach(function (b) { b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            renderKpis(btn.dataset.range);
+        });
+    });
+
+    renderKpis('medium_term');
+</script>
 {% endblock %}

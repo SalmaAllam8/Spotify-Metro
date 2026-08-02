@@ -3,6 +3,11 @@
 {% block body_class %}dashboard-page{% endblock %}
 
 {% block content %}
+<video class="dashboard-bg-video" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
+</video>
+<div class="dashboard-bg-overlay"></div>
+
 <main class="dashboard">
 
     <div class="range-toggle" role="tablist" aria-label="Time range">

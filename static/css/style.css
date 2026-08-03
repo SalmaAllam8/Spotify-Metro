@@ -477,6 +477,8 @@ body.dashboard-page {
 }
 
 .hub-card {
+    position: relative;
+    overflow: hidden;
     width: 100%;
     height: 315px;
     padding: 1.6rem;
@@ -490,6 +492,33 @@ body.dashboard-page {
                 box-shadow 0.25s ease,
                 background 0.25s ease,
                 border-color 0.25s ease;
+}
+
+.hub-card-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    transition: transform 0.4s ease;
+}
+
+.hub-card:hover .hub-card-media {
+    transform: scale(1.06);
+}
+
+.hub-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(5, 7, 5, 0.9) 15%, rgba(5, 7, 5, 0.15) 65%);
+    z-index: 1;
+}
+
+.hub-card-label,
+.hub-card-value {
+    position: relative;
+    z-index: 2;
 }
 
 .hub-card:hover {
@@ -576,25 +605,65 @@ body.dashboard-page {
 }
 
 .kpi-card {
-    background: linear-gradient(135deg, #4ADE80, #16A34A);
+    position: relative;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid #A2F396;
     border-radius: 18px;
-    padding: 1.6rem 1.8rem;
+    padding: 1.8rem 2rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    color: #08130C;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+
+}
+
+.kpi-card::before,
+.kpi-card::after {
+    content: "";
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    filter: blur(18px);
+    pointer-events: none;
+}
+
+.kpi-card::before {
+    top: -30px;
+    left: -30px;
+    background: rgba(159, 225, 29, 0.55);
+}
+
+.kpi-card::after {
+    bottom: -30px;
+    right: -30px;
+    background: rgba(74, 222, 128, 0.5);
 }
 
 .kpi-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    opacity: 0.85;
+    position: relative;
+    z-index: 1;
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #A2F396, #4ADE80);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
 .kpi-value {
+    position: relative;
+    z-index: 1;
     font-family: var(--font-mono);
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 2.4rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #A2F396, #4ADE80);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
 .muted { color: var(--text-muted); }

@@ -736,7 +736,7 @@ body.dashboard-page {
 }
 
 .side-panel {
-    width: 300px;
+    width: 400px;
     flex-shrink: 0;
     padding: 1.8rem;
     height: 340px;

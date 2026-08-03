@@ -99,33 +99,122 @@
 
     // Places each label directly inside the middle of its own slice —
     // no leader line, so nothing ends up out at the canvas corners.
-    const sliceLabelsPlugin = {
-        id: 'sliceLabels',
-        afterDraw(chart) {
-            const { ctx } = chart;
-            const meta = chart.getDatasetMeta(0);
-            ctx.save();
-            meta.data.forEach((arc, i) => {
-                const { startAngle, endAngle, innerRadius, outerRadius, x, y } = arc.getProps(
-                    ['startAngle', 'endAngle', 'innerRadius', 'outerRadius', 'x', 'y'], true
-                );
-                const angle = (startAngle + endAngle) / 2;
-                const radius = (innerRadius + outerRadius) / 2;
-                const labelX = x + Math.cos(angle) * radius;
-                const labelY = y + Math.sin(angle) * radius;
+  const sliceLabelsPlugin = {
+    id: 'sliceLabels',
 
-                ctx.fillStyle = '#08130C';
-                ctx.font = '700 12px "Space Grotesk", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const label = chart.data.labels[i];
-                const value = chart.data.datasets[0].data[i];
-                ctx.fillText(label, labelX, labelY - 7);
-                ctx.fillText(`(${value})`, labelX, labelY + 7);
-            });
-            ctx.restore();
-        },
-    };
+    afterDraw(chart) {
+        const { ctx, chartArea } = chart;
+        const meta = chart.getDatasetMeta(0);
+
+        ctx.save();
+
+        meta.data.forEach((arc, i) => {
+
+            const {
+                startAngle,
+                endAngle,
+                outerRadius,
+                x,
+                y
+            } = arc.getProps(
+                ['startAngle', 'endAngle', 'outerRadius', 'x', 'y'],
+                true
+            );
+
+            const angle = (startAngle + endAngle) / 2;
+
+            // Start at edge of donut
+            const startX =
+                x + Math.cos(angle) * outerRadius;
+
+            const startY =
+                y + Math.sin(angle) * outerRadius;
+
+            // Move outside donut
+            const lineLength = 20;
+
+            const midX =
+                x + Math.cos(angle) * (outerRadius + lineLength);
+
+            const midY =
+                y + Math.sin(angle) * (outerRadius + lineLength);
+
+            const isRight = Math.cos(angle) >= 0;
+
+            // Keep labels safely inside canvas
+            const padding = 15;
+
+            const endX = isRight
+                ? chartArea.right - padding
+                : chartArea.left + padding;
+
+            const endY = midY;
+
+            // -----------------------
+            // Leader line
+            // -----------------------
+
+            ctx.beginPath();
+
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(midX, midY);
+            ctx.lineTo(endX, endY);
+
+            ctx.strokeStyle = '#B8F7C5';
+            ctx.lineWidth = 1.5;
+
+            ctx.stroke();
+
+            // -----------------------
+            // Text
+            // -----------------------
+
+            const label = chart.data.labels[i];
+            const value = chart.data.datasets[0].data[i];
+
+            ctx.fillStyle = '#B8F7C5';
+
+            ctx.font = '700 10px "Space Grotesk", sans-serif';
+
+            ctx.textBaseline = 'middle';
+
+            if (isRight) {
+
+                ctx.textAlign = 'left';
+
+                ctx.fillText(
+                    label,
+                    endX + 5,
+                    endY - 7
+                );
+
+                ctx.fillText(
+                    `(${value})`,
+                    endX + 5,
+                    endY + 7
+                );
+
+            } else {
+
+                ctx.textAlign = 'right';
+
+                ctx.fillText(
+                    label,
+                    endX - 5,
+                    endY - 7
+                );
+
+                ctx.fillText(
+                    `(${value})`,
+                    endX - 5,
+                    endY + 7
+                );
+            }
+        });
+
+        ctx.restore();
+    }
+};
 
     new Chart(document.getElementById('popularityDonut'), {
         type: 'doughnut',
@@ -134,12 +223,23 @@
             datasets: [{
                 data: [donut['Mainstream'], donut['Mid-tier'], donut['Niche']],
                 backgroundColor: ['#9FE11D', '#4ADE80', '#16A34A'],
-                borderColor: '#0A100C',
-                borderWidth: 2,
+
+                borderWidth: 0,
             }],
         },
         options: {
+            radius: '80%',
+
             plugins: { legend: { display: false } },
+                layout: {
+        padding: {
+            top: 25,
+            bottom: 25,
+            left: 50,
+            right: 50
+        }
+    },
+
         },
         plugins: [sliceLabelsPlugin],
     });

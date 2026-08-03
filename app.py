@@ -8,6 +8,8 @@ visitors, not written to disk).
 
 import os
 import spotipy
+import mysql.connector
+from itertools import groupby
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.cache_handler import FlaskSessionCacheHandler
 from flask import Flask, render_template, redirect, url_for, session, request
@@ -24,6 +26,112 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-this")
+
+DB_CONFIG = {
+    "host": os.environ.get("MYSQL_HOST"),
+    "port": os.environ.get("MYSQL_PORT", 3306),
+    "user": os.environ.get("MYSQL_USER"),
+    "password": os.environ.get("MYSQL_PASSWORD"),
+    "database": os.environ.get("MYSQL_DATABASE", "spotify_data"),
+}
+
+
+def get_db_connection():
+    return mysql.connector.connect(**DB_CONFIG)
+
+
+# See artist_queries.sql for the fully commented versions of these, including
+# what was wrong with the originals and why.
+
+TASTE_ARCHETYPE_QUERY = """
+    WITH top_track_stats AS (
+        SELECT tt.user_id, ROUND(AVG(t.popularity), 1) AS avg_top_track_popularity
+        FROM top_tracks tt JOIN tracks t ON tt.track_id = t.track_id
+        WHERE tt.user_id = %s GROUP BY tt.user_id
+    ),
+    top_artist_stats AS (
+        SELECT ta.user_id, ROUND(AVG(a.popularity), 1) AS avg_top_artist_popularity
+        FROM top_artists ta JOIN artists a ON ta.artist_id = a.artist_id
+        WHERE ta.user_id = %s GROUP BY ta.user_id
+    ),
+    saved_track_stats AS (
+        SELECT st.user_id, ROUND(AVG(t.popularity), 1) AS avg_saved_track_popularity
+        FROM saved_tracks st JOIN tracks t ON st.track_id = t.track_id
+        WHERE st.user_id = %s GROUP BY st.user_id
+    )
+    SELECT
+        u.user_id, u.display_name,
+        tts.avg_top_track_popularity, tas.avg_top_artist_popularity, sts.avg_saved_track_popularity,
+        ROUND((COALESCE(tts.avg_top_track_popularity, 0) + COALESCE(tas.avg_top_artist_popularity, 0) + COALESCE(sts.avg_saved_track_popularity, 0)) / 3, 1) AS overall_mainstream_score,
+        CASE
+            WHEN ((COALESCE(tts.avg_top_track_popularity, 0) + COALESCE(tas.avg_top_artist_popularity, 0) + COALESCE(sts.avg_saved_track_popularity, 0)) / 3) >= 75 THEN 'Chart Hopper (Extremely Mainstream)'
+            WHEN ((COALESCE(tts.avg_top_track_popularity, 0) + COALESCE(tas.avg_top_artist_popularity, 0) + COALESCE(sts.avg_saved_track_popularity, 0)) / 3) >= 55 THEN 'Balanced Curation (Mainstream & Indie)'
+            WHEN ((COALESCE(tts.avg_top_track_popularity, 0) + COALESCE(tas.avg_top_artist_popularity, 0) + COALESCE(sts.avg_saved_track_popularity, 0)) / 3) >= 35 THEN 'Underground & Niche Explorer'
+            ELSE 'Deep Underground / Obscure'
+        END AS taste_archetype
+    FROM users u
+    LEFT JOIN top_track_stats tts ON u.user_id = tts.user_id
+    LEFT JOIN top_artist_stats tas ON u.user_id = tas.user_id
+    LEFT JOIN saved_track_stats sts ON u.user_id = sts.user_id
+    WHERE u.user_id = %s;
+"""
+
+ARTIST_POPULARITY_DONUT_QUERY = """
+    SELECT
+        CASE
+            WHEN a.popularity >= 70 THEN 'Mainstream'
+            WHEN a.popularity BETWEEN 40 AND 69 THEN 'Mid-tier'
+            ELSE 'Niche'
+        END AS popularity_tier,
+        COUNT(DISTINCT a.artist_id) AS artist_count
+    FROM top_artists ta JOIN artists a ON ta.artist_id = a.artist_id
+    WHERE ta.user_id = %s
+    GROUP BY popularity_tier;
+"""
+
+STABILITY_QUERY = """
+    WITH artist_play_counts AS (
+        SELECT ta_link.artist_id, COUNT(*) AS play_count
+        FROM recently_played rp
+        JOIN track_artists ta_link ON rp.track_id = ta_link.track_id AND ta_link.position = 0
+        WHERE rp.user_id = %s
+        GROUP BY ta_link.artist_id
+    )
+    SELECT
+        CASE
+            WHEN play_count = 1 THEN 'One-time'
+            WHEN play_count BETWEEN 2 AND 4 THEN 'Returning'
+            ELSE 'Core'
+        END AS stability_tier,
+        COUNT(*) AS artist_count
+    FROM artist_play_counts
+    GROUP BY stability_tier;
+"""
+
+ARTIST_LOYALTY_QUERY = """
+    SELECT
+        ta.user_id, a.artist_id, a.name AS artist_name, a.image_url,
+        MAX(CASE WHEN ta.time_range = 'short_term' THEN ta.rank_pos END) AS short_term_rank,
+        MAX(CASE WHEN ta.time_range = 'medium_term' THEN ta.rank_pos END) AS medium_term_rank,
+        MAX(CASE WHEN ta.time_range = 'long_term' THEN ta.rank_pos END) AS long_term_rank,
+        CASE
+            WHEN SUM(CASE WHEN ta.time_range = 'short_term' THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN ta.time_range = 'long_term' THEN 1 ELSE 0 END) > 0 THEN 'Core Loyalty'
+            WHEN SUM(CASE WHEN ta.time_range = 'short_term' THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN ta.time_range = 'long_term' THEN 1 ELSE 0 END) = 0 THEN 'Trending'
+            WHEN SUM(CASE WHEN ta.time_range = 'short_term' THEN 1 ELSE 0 END) = 0 AND SUM(CASE WHEN ta.time_range = 'long_term' THEN 1 ELSE 0 END) > 0 THEN 'Legacy'
+            ELSE 'Mid-Term'
+        END AS artist_loyalty_tier
+    FROM top_artists ta JOIN artists a ON ta.artist_id = a.artist_id
+    WHERE ta.user_id = %s
+    GROUP BY ta.user_id, a.artist_id, a.name, a.image_url
+    ORDER BY FIELD(artist_loyalty_tier, 'Core Loyalty', 'Trending', 'Legacy', 'Mid-Term'), short_term_rank ASC, long_term_rank ASC;
+"""
+
+TOP_3_ARTISTS_QUERY = """
+    SELECT a.artist_id, a.name, a.image_url, ta.rank_pos
+    FROM top_artists ta JOIN artists a ON ta.artist_id = a.artist_id
+    WHERE ta.user_id = %s AND ta.time_range = 'medium_term' AND ta.rank_pos <= 3
+    ORDER BY ta.rank_pos;
+"""
 
 
 def country_code_to_flag(code):
@@ -92,6 +200,10 @@ def callback():
         return redirect(url_for("index"))
 
     sp_oauth.get_access_token(code)  # stores the token in this visitor's session
+
+    sp = spotipy.Spotify(auth=sp_oauth.cache_handler.get_cached_token()["access_token"])
+    session["user_id"] = sp.current_user()["id"]
+
     return redirect(url_for("dashboard"))
 
 
@@ -135,6 +247,74 @@ def dashboard():
         "kpis_by_range": kpis_by_range,
     }
     return render_template("dashboard.html", data=data)
+
+
+@app.route("/dashboard/artists")
+def artists_page():
+    sp_oauth = make_spotify_oauth()
+    token_info = sp_oauth.validate_token(sp_oauth.cache_handler.get_cached_token())
+
+    if not token_info:
+        return redirect(url_for("login"))
+
+    user_id = session.get("user_id")
+    if not user_id:
+        # Session existed but predates us storing user_id at login — fetch
+        # it once and cache it, rather than failing.
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user_id = get_user_profile(sp)["id"]
+        session["user_id"] = user_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(TASTE_ARCHETYPE_QUERY, (user_id, user_id, user_id, user_id))
+    taste_row = cursor.fetchone()
+
+    cursor.execute(TOP_3_ARTISTS_QUERY, (user_id,))
+    top_3_artists = cursor.fetchall()
+
+    cursor.execute(STABILITY_QUERY, (user_id,))
+    stability_rows = cursor.fetchall()
+
+    cursor.execute(ARTIST_POPULARITY_DONUT_QUERY, (user_id,))
+    donut_rows = cursor.fetchall()
+
+    cursor.execute(ARTIST_LOYALTY_QUERY, (user_id,))
+    loyalty_rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # Fill in zero for any tier that had no rows at all, so the charts
+    # always show all categories rather than silently omitting empty ones.
+    stability = {"One-time": 0, "Returning": 0, "Core": 0}
+    for row in stability_rows:
+        stability[row["stability_tier"]] = row["artist_count"]
+
+    donut = {"Mainstream": 0, "Mid-tier": 0, "Niche": 0}
+    for row in donut_rows:
+        donut[row["popularity_tier"]] = row["artist_count"]
+
+    # Group the loyalty rows into their 4 categories, top 5 each. The SQL
+    # query already orders rows so each category's best-ranked artists come
+    # first, so slicing [:5] here is safe.
+    loyalty_by_tier = {
+        tier: list(rows)[:5]
+        for tier, rows in groupby(loyalty_rows, key=lambda r: r["artist_loyalty_tier"])
+    }
+    for tier in ["Core Loyalty", "Trending", "Legacy", "Mid-Term"]:
+        loyalty_by_tier.setdefault(tier, [])
+
+    data = {
+        "taste_archetype": taste_row["taste_archetype"] if taste_row else None,
+        "overall_mainstream_score": taste_row["overall_mainstream_score"] if taste_row else None,
+        "top_3_artists": top_3_artists,
+        "stability": stability,
+        "donut": donut,
+        "loyalty_by_tier": loyalty_by_tier,
+    }
+    return render_template("artists.html", data=data)
 
 
 @app.route("/logout")

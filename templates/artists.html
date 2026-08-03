@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Your Favourite Artists — Listening Log{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block content %}
+<video class="dashboard-bg-video" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
+</video>
+<div class="dashboard-bg-overlay"></div>
+
+<main class="dashboard">
+
+    <p class="archetype-sentence">
+        {% if data.taste_archetype %}
+            Your taste is <span class="archetype-highlight">{{ data.taste_archetype }}</span>
+            <span class="archetype-score">({{ data.overall_mainstream_score }} / 100 mainstream score)</span>
+        {% else %}
+            <span class="muted">Not enough listening data yet to work out your taste archetype.</span>
+        {% endif %}
+    </p>
+
+    <h1 class="page-title">Your Favourite Artists</h1>
+
+    <div class="artists-hero">
+        <div class="glass-card side-panel">
+            <h2 class="side-panel-title">Stability</h2>
+            <canvas id="stabilityChart" height="260"></canvas>
+        </div>
+
+        <div class="top-3-row">
+            {% set rank_classes = {2: 'rank-2', 1: 'rank-1', 3: 'rank-3'} %}
+            {% for rank in [2, 1, 3] %}
+                {% set artist = data.top_3_artists | selectattr('rank_pos', 'equalto', rank) | first %}
+                <div class="top-artist-card {{ rank_classes[rank] }}">
+                    {% if artist %}
+                        <img src="{{ artist.image_url }}" alt="{{ artist.name }}" class="top-artist-img">
+                        <span class="top-artist-name">{{ artist.name }}</span>
+                    {% else %}
+                        <div class="top-artist-img top-artist-img--placeholder"></div>
+                        <span class="top-artist-name muted">—</span>
+                    {% endif %}
+                    <span class="top-artist-rank">#{{ rank }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="glass-card side-panel">
+            <h2 class="side-panel-title">Popularity Mix</h2>
+            <canvas id="popularityDonut" height="260"></canvas>
+        </div>
+    </div>
+
+    <div class="loyalty-row">
+        {% for tier, label in [('Core Loyalty', 'Core Loyalty'), ('Trending', 'Trending'), ('Legacy', 'Legacy'), ('Mid-Term', 'Mid-Term')] %}
+            <div class="loyalty-card glass-card">
+                <span class="loyalty-card-title">{{ label }}</span>
+                {% set artists = data.loyalty_by_tier[tier] %}
+                {% if artists %}
+                    <ul class="loyalty-artist-list">
+                        {% for a in artists %}
+                            <li>{{ a.artist_name }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="muted loyalty-empty">No artists in this tier yet</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+    const stability = {{ data.stability | tojson }};
+    const donut = {{ data.donut | tojson }};
+
+    const chartTextColor = '#8D8FA0';
+    const chartGridColor = 'rgba(255,255,255,0.06)';
+
+    new Chart(document.getElementById('stabilityChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Core', 'Returning', 'One-time'],
+            datasets: [{
+                data: [stability['Core'], stability['Returning'], stability['One-time']],
+                backgroundColor: ['#9FE11D', '#4ADE80', '#16A34A'],
+                borderRadius: 6,
+            }],
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: chartTextColor }, grid: { display: false } },
+                y: { ticks: { color: chartTextColor, precision: 0 }, grid: { color: chartGridColor } },
+            },
+        },
+    });
+
+    // Places each label directly inside the middle of its own slice —
+    // no leader line, so nothing ends up out at the canvas corners.
+    const sliceLabelsPlugin = {
+        id: 'sliceLabels',
+        afterDraw(chart) {
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            ctx.save();
+            meta.data.forEach((arc, i) => {
+                const { startAngle, endAngle, innerRadius, outerRadius, x, y } = arc.getProps(
+                    ['startAngle', 'endAngle', 'innerRadius', 'outerRadius', 'x', 'y'], true
+                );
+                const angle = (startAngle + endAngle) / 2;
+                const radius = (innerRadius + outerRadius) / 2;
+                const labelX = x + Math.cos(angle) * radius;
+                const labelY = y + Math.sin(angle) * radius;
+
+                ctx.fillStyle = '#08130C';
+                ctx.font = '700 12px "Space Grotesk", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const label = chart.data.labels[i];
+                const value = chart.data.datasets[0].data[i];
+                ctx.fillText(label, labelX, labelY - 7);
+                ctx.fillText(`(${value})`, labelX, labelY + 7);
+            });
+            ctx.restore();
+        },
+    };
+
+    new Chart(document.getElementById('popularityDonut'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Mainstream', 'Mid-tier', 'Niche'],
+            datasets: [{
+                data: [donut['Mainstream'], donut['Mid-tier'], donut['Niche']],
+                backgroundColor: ['#9FE11D', '#4ADE80', '#16A34A'],
+                borderColor: '#0A100C',
+                borderWidth: 2,
+            }],
+        },
+        options: {
+            plugins: { legend: { display: false } },
+        },
+        plugins: [sliceLabelsPlugin],
+    });
+</script>
+{% endblock %}

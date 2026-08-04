@@ -27,7 +27,7 @@
 
     <div class="genres-hero">
         <div class="glass-card side-panel genre-bar-panel">
-            <h2 class="side-panel-title">Weighted Genre Score</h2>
+            <h2 class="side-panel-title">Your Genre Trends</h2>
             <canvas id="genreBarChart"></canvas>
         </div>
 
@@ -102,9 +102,20 @@
             indexAxis: 'y',
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: { color: '#ffffff', boxWidth: 7, font: { size: 8  } },
-                },
+    position: 'bottom',
+    labels: {
+        color: '#ffffff',
+        boxWidth: 9,
+        boxHeight: 9,
+        padding: 10,
+        font: {
+            size: 10,
+            family: 'Arial',
+            weight: 'normal'
+        }
+    }
+},
+
             },
             scales: {
                 x: { ticks: { color: '#ffffff', font: { size: 8 } }, grid: { color: 'rgba(255,255,255,0.06)' } },

@@ -3,7 +3,7 @@
     --surface: #1C1D25;
     --surface-2: #23242E;
     --text: #EDEBE3;
-    --text-muted: #8D8FA0;
+    --text-muted: #ffffff;
     --accent: #0BF44D;
     --accent-2: #7C5CBF;
     --border: #2E303C;
@@ -867,7 +867,7 @@ body.dashboard-page {
 }
 
 .genre-stat-label {
-    font-size: 0.85rem;
+    font-size: 1rem;
     color: var(--text-muted);
 }
 
@@ -891,9 +891,9 @@ body.dashboard-page {
 
 .genre-bar-panel,
 .venn-panel {
-    width: 380px;
+    width: 520px;
     flex-shrink: 0;
-    height: 420px;
+    height: 570px;
 }
 
 .genre-bar-panel canvas {

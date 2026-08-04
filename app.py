@@ -7,6 +7,7 @@ visitors, not written to disk).
 """
 
 import os
+import hashlib
 import spotipy
 import mysql.connector
 from itertools import groupby
@@ -132,6 +133,91 @@ TOP_3_ARTISTS_QUERY = """
     WHERE ta.user_id = %s AND ta.time_range = 'medium_term' AND ta.rank_pos <= 3
     ORDER BY ta.rank_pos;
 """
+
+# --- Genres page queries ---
+#
+# GENRE_WEIGHTED_SCORE_QUERY is your query, fixed: added the missing
+# WHERE user_id filter (same bug class as the artist queries), and widened
+# the time_range filter to include medium_term — the venn diagram and
+# grouped bar chart both need all three ranges, not just short/long.
+GENRE_WEIGHTED_SCORE_QUERY = """
+    SELECT
+        tt.time_range,
+        ag.genre_name,
+        COUNT(DISTINCT tt.track_id) AS track_count,
+        SUM(51 - tt.rank_pos) AS weighted_genre_score,
+        ROUND(AVG(tt.rank_pos), 2) AS average_rank
+    FROM top_tracks tt
+    JOIN track_artists ta ON tt.track_id = ta.track_id AND ta.position = 0
+    JOIN artist_genres ag ON ta.artist_id = ag.artist_id
+    WHERE tt.user_id = %s
+    GROUP BY tt.time_range, ag.genre_name
+    ORDER BY tt.time_range, weighted_genre_score DESC;
+"""
+
+# You sent this one as two bare fragments with no FROM/JOIN/WHERE visible —
+# this is my reconstruction, not a fix of something I could see broken.
+# Scope chosen: unique genres vs. unique tracks across ALL of top_tracks
+# (all 3 ranges combined, deduplicated by track). If your original scoped
+# this to a single range or to saved_tracks instead, swap the FROM/JOIN here.
+GENRE_DIVERSITY_QUERY = """
+    SELECT
+        COUNT(DISTINCT ag.genre_name) AS unique_genre_count,
+        COUNT(DISTINCT tt.track_id) AS unique_track_count,
+        ROUND(
+            COUNT(DISTINCT ag.genre_name) * 1.0 / NULLIF(COUNT(DISTINCT tt.track_id), 0),
+            2
+        ) AS genre_diversity_ratio,
+        CASE
+            WHEN COUNT(DISTINCT ag.genre_name) >= 15 THEN 'Eclectic / Wide Blend'
+            WHEN COUNT(DISTINCT ag.genre_name) BETWEEN 6 AND 14 THEN 'Balanced Theme'
+            WHEN COUNT(DISTINCT ag.genre_name) BETWEEN 1 AND 5 THEN 'Laser-Focused / Single Vibe'
+            ELSE 'Empty / Unassigned'
+        END AS playlist_vibe_type
+    FROM top_tracks tt
+    JOIN track_artists ta ON tt.track_id = ta.track_id AND ta.position = 0
+    JOIN artist_genres ag ON ta.artist_id = ag.artist_id
+    WHERE tt.user_id = %s;
+"""
+
+
+def genre_to_color(genre_name):
+    """Deterministic color per genre: hash the name to a hue, keep
+    saturation/lightness fixed so every genre gets an equally vivid,
+    readable color — same genre always gets the same color, no lookup
+    table to maintain by hand."""
+    digest = int(hashlib.md5(genre_name.encode()).hexdigest(), 16)
+    hue = digest % 360
+    return hsl_to_hex(hue, 68, 55)
+
+
+def hsl_to_hex(h, s, l):
+    s /= 100
+    l /= 100
+    c = (1 - abs(2 * l - 1)) * s
+    x = c * (1 - abs((h / 60) % 2 - 1))
+    m = l - c / 2
+    if h < 60: r, g, b = c, x, 0
+    elif h < 120: r, g, b = x, c, 0
+    elif h < 180: r, g, b = 0, c, x
+    elif h < 240: r, g, b = 0, x, c
+    elif h < 300: r, g, b = x, 0, c
+    else: r, g, b = c, 0, x
+    r, g, b = [round((v + m) * 255) for v in (r, g, b)]
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def bucket_venn_regions(short_set, medium_set, long_set):
+    """Split 3 genre sets into the 7 non-overlapping venn regions."""
+    return {
+        "short_only": sorted(short_set - medium_set - long_set),
+        "medium_only": sorted(medium_set - short_set - long_set),
+        "long_only": sorted(long_set - short_set - medium_set),
+        "short_medium": sorted((short_set & medium_set) - long_set),
+        "short_long": sorted((short_set & long_set) - medium_set),
+        "medium_long": sorted((medium_set & long_set) - short_set),
+        "all_three": sorted(short_set & medium_set & long_set),
+    }
 
 
 def country_code_to_flag(code):
@@ -315,6 +401,82 @@ def artists_page():
         "loyalty_by_tier": loyalty_by_tier,
     }
     return render_template("artists.html", data=data)
+
+
+@app.route("/dashboard/genres")
+def genres_page():
+    sp_oauth = make_spotify_oauth()
+    token_info = sp_oauth.validate_token(sp_oauth.cache_handler.get_cached_token())
+
+    if not token_info:
+        return redirect(url_for("login"))
+
+    user_id = session.get("user_id")
+    if not user_id:
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user_id = get_user_profile(sp)["id"]
+        session["user_id"] = user_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(GENRE_WEIGHTED_SCORE_QUERY, (user_id,))
+    weighted_rows = cursor.fetchall()
+
+    cursor.execute(GENRE_DIVERSITY_QUERY, (user_id,))
+    diversity_row = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    # --- genre sets per range, for the venn diagram ---
+    genre_sets = {"short_term": set(), "medium_term": set(), "long_term": set()}
+    for row in weighted_rows:
+        genre_sets[row["time_range"]].add(row["genre_name"])
+    venn_regions = bucket_venn_regions(
+        genre_sets["short_term"], genre_sets["medium_term"], genre_sets["long_term"]
+    )
+
+    # --- total weighted score per genre, summed across all 3 ranges ---
+    total_score_by_genre = {}
+    for row in weighted_rows:
+        total_score_by_genre[row["genre_name"]] = (
+            total_score_by_genre.get(row["genre_name"], 0) + row["weighted_genre_score"]
+        )
+    ranked_genres = sorted(total_score_by_genre.items(), key=lambda kv: kv[1], reverse=True)
+
+    # --- top 3 genres overall power the Aura gradient ---
+    top_3_genres = [
+        {"name": name, "color": genre_to_color(name)}
+        for name, _ in ranked_genres[:3]
+    ]
+
+    # --- top 8 genres power the grouped horizontal bar chart ---
+    top_genre_names = [name for name, _ in ranked_genres[:8]]
+    score_by_genre_range = {
+        (row["genre_name"], row["time_range"]): row["weighted_genre_score"]
+        for row in weighted_rows
+    }
+    bar_chart_genres = [
+        {
+            "name": name,
+            "color": genre_to_color(name),
+            "short_term": score_by_genre_range.get((name, "short_term"), 0),
+            "medium_term": score_by_genre_range.get((name, "medium_term"), 0),
+            "long_term": score_by_genre_range.get((name, "long_term"), 0),
+        }
+        for name in top_genre_names
+    ]
+
+    data = {
+        "unique_genre_count": diversity_row["unique_genre_count"] if diversity_row else 0,
+        "genre_diversity_ratio": diversity_row["genre_diversity_ratio"] if diversity_row else 0,
+        "playlist_vibe_type": diversity_row["playlist_vibe_type"] if diversity_row else "—",
+        "top_3_genres": top_3_genres,
+        "bar_chart_genres": bar_chart_genres,
+        "venn_regions": venn_regions,
+    }
+    return render_template("genres.html", data=data)
 
 
 @app.route("/logout")

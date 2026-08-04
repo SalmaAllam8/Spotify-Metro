@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Your Favourite Genres — Listening Log{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block content %}
+<video class="dashboard-bg-video" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
+</video>
+<div class="dashboard-bg-overlay"></div>
+
+<main class="dashboard">
+
+    <div class="genre-stats-row">
+        <div class="genre-stat">
+            <span class="genre-stat-label">Unique genres</span>
+            <span class="genre-stat-value">{{ data.unique_genre_count }}</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Genre Diversity</span>
+            <span class="genre-stat-value">{{ data.genre_diversity_ratio }}</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Taste Type</span>
+            <span class="genre-stat-value">{{ data.playlist_vibe_type }}</span>
+        </div>
+    </div>
+
+    <div class="genres-hero">
+        <div class="glass-card side-panel genre-bar-panel">
+            <h2 class="side-panel-title">Weighted Genre Score</h2>
+            <canvas id="genreBarChart"></canvas>
+        </div>
+
+        <div class="genre-center">
+            <h1 class="page-title">Your Favourite Genres</h1>
+
+            <div class="aura-circle" style="background:
+                radial-gradient(circle at 30% 30%, {{ data.top_3_genres[0].color if data.top_3_genres|length > 0 else '#4ADE80' }} 0%, transparent 62%),
+                radial-gradient(circle at 72% 32%, {{ data.top_3_genres[1].color if data.top_3_genres|length > 1 else '#9FE11D' }} 0%, transparent 62%),
+                radial-gradient(circle at 50% 80%, {{ data.top_3_genres[2].color if data.top_3_genres|length > 2 else '#16A34A' }} 0%, transparent 62%),
+                #10160F;">
+            </div>
+
+            <p class="genre-list-title">Your Top Genres</p>
+            <ul class="top-genre-list">
+                {% for genre in data.top_3_genres %}
+                    <li><span class="genre-dot" style="background:{{ genre.color }};"></span>{{ genre.name }}</li>
+                {% else %}
+                    <li class="muted">Not enough data yet</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="glass-card side-panel venn-panel">
+            <h2 class="side-panel-title">Genre Overlap</h2>
+            <svg class="venn-svg" viewBox="0 0 320 280">
+                <circle cx="120" cy="110" r="95" class="venn-circle venn-circle--long" />
+                <circle cx="200" cy="110" r="95" class="venn-circle venn-circle--short" />
+                <circle cx="160" cy="180" r="95" class="venn-circle venn-circle--medium" />
+
+                <text x="60" y="35" class="venn-range-label">Long</text>
+                <text x="235" y="35" class="venn-range-label">Short</text>
+                <text x="160" y="270" class="venn-range-label" text-anchor="middle">Mid</text>
+
+                {% macro region_box(x, y, w, h, genres) %}
+                <foreignObject x="{{ x }}" y="{{ y }}" width="{{ w }}" height="{{ h }}">
+                    <div class="venn-region-label" xmlns="http://www.w3.org/1999/xhtml">
+                        {% for g in genres[:4] %}<span>{{ g }}</span>{% endfor %}
+                        {% if genres|length > 4 %}<span class="muted">+{{ genres|length - 4 }} more</span>{% endif %}
+                    </div>
+                </foreignObject>
+                {% endmacro %}
+
+                {{ region_box(45, 70, 75, 70, data.venn_regions.long_only) }}
+                {{ region_box(200, 70, 75, 70, data.venn_regions.short_only) }}
+                {{ region_box(122, 210, 76, 60, data.venn_regions.medium_only) }}
+                {{ region_box(122, 55, 76, 55, data.venn_regions.short_long) }}
+                {{ region_box(90, 145, 70, 60, data.venn_regions.medium_long) }}
+                {{ region_box(160, 145, 70, 60, data.venn_regions.short_medium) }}
+                {{ region_box(122, 125, 76, 45, data.venn_regions.all_three) }}
+            </svg>
+        </div>
+    </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+    const barGenres = {{ data.bar_chart_genres | tojson }};
+
+    new Chart(document.getElementById('genreBarChart'), {
+        type: 'bar',
+        data: {
+            labels: barGenres.map(g => g.name),
+            datasets: [
+                { label: 'Long term', data: barGenres.map(g => g.long_term), backgroundColor: '#16A34A' },
+                { label: 'Medium term', data: barGenres.map(g => g.medium_term), backgroundColor: '#4ADE80' },
+                { label: 'Short term', data: barGenres.map(g => g.short_term), backgroundColor: '#9FE11D' },
+            ],
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { position: 'bottom', labels: { color: '#8D8FA0', boxWidth: 12 } } },
+            scales: {
+                x: { ticks: { color: '#8D8FA0' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { ticks: { color: '#8D8FA0' }, grid: { display: false } },
+            },
+        },
+    });
+</script>
+{% endblock %}

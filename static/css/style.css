@@ -1001,7 +1001,8 @@ body.dashboard-page {
 /* ---------- Listening Activity page ---------- */
 
 .activity-stats-row {
-    gap: 2.5rem;
+    gap: 3.5rem;
+    font-size :50px
 }
 
 .activity-hero {
@@ -1021,6 +1022,8 @@ body.dashboard-page {
     flex-shrink: 0;
     padding: 0;
     overflow: hidden;
+    margin-left: 70px;
+    margin-right: 70px;
 }
 
 .activity-placeholder-img {
@@ -1060,17 +1063,19 @@ body.dashboard-page {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    max-width: 420px;
+    max-width: 600px;
     margin-top: 0.6rem;
     font-family: var(--font-mono);
-    font-size: 0.85rem;
+    font-size: 1.3rem;
     color: var(--text-muted);
+
 }
 
 .coverage-caption {
-    font-size: 0.78rem;
+    font-size: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-weight: 700;
 }
 
 .histogram-row {

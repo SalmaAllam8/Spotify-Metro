@@ -892,13 +892,13 @@ body.dashboard-page {
 .genre-bar-panel{
     width: 600px;
     flex-shrink: 0;
-    height: 500px;
+    height: 480px;
 }
 
 .venn-panel {
     width: 500px;
     flex-shrink: 0;
-    height: 500px;
+    height: 480px;
 }
 
 .genre-bar-panel canvas {

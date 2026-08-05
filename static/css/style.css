@@ -1090,6 +1090,7 @@ body.dashboard-page {
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
+    width: 370px;
 }
 
 .histogram-panel canvas {

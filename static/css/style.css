@@ -890,15 +890,15 @@ body.dashboard-page {
 }
 
 .genre-bar-panel{
-    width: 600px;
+    width: 610px;
     flex-shrink: 0;
-    height: 480px;
+    height: 460px;
 }
 
 .venn-panel {
     width: 500px;
     flex-shrink: 0;
-    height: 480px;
+    height: 460px;
 }
 
 .genre-bar-panel canvas {

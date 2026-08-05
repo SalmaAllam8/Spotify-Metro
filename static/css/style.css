@@ -889,11 +889,16 @@ body.dashboard-page {
     margin-bottom: 2.5rem;
 }
 
-.genre-bar-panel,
-.venn-panel {
-    width: 520px;
+.genre-bar-panel{
+    width: 600px;
     flex-shrink: 0;
-    height: 570px;
+    height: 500px;
+}
+
+.venn-panel {
+    width: 500px;
+    flex-shrink: 0;
+    height: 500px;
 }
 
 .genre-bar-panel canvas {

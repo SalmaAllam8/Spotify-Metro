@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Your Listening Activity — Listening Log{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block content %}
+<video class="dashboard-bg-video" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
+</video>
+<div class="dashboard-bg-overlay"></div>
+
+<main class="dashboard">
+
+    <div class="genre-stats-row activity-stats-row">
+        <div class="genre-stat">
+            <span class="genre-stat-label">Repeat rate</span>
+            <span class="genre-stat-value">{{ data.repeat_rate }}%</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Listening minutes</span>
+            <span class="genre-stat-value">{{ data.listening_minutes }}</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Avg track length</span>
+            <span class="genre-stat-value">{{ data.avg_track_length }}</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Streams</span>
+            <span class="genre-stat-value">{{ data.streams }}</span>
+        </div>
+        <div class="genre-stat">
+            <span class="genre-stat-label">Unique tracks</span>
+            <span class="genre-stat-value">{{ data.unique_tracks }}</span>
+        </div>
+    </div>
+
+    <div class="activity-hero">
+        <div class="glass-card activity-placeholder">
+            <img src="{{ url_for('static', filename='images/activity_left.jpg') }}" alt="" class="activity-placeholder-img">
+        </div>
+
+        <div class="genre-center">
+            <h1 class="page-title">Your Listening Activity</h1>
+            <div class="coverage-line">
+                <span class="coverage-dot"></span>
+                <span class="coverage-track"></span>
+                <span class="coverage-dot"></span>
+            </div>
+            <div class="coverage-dates">
+                <span>{{ data.coverage_start }}</span>
+                <span class="coverage-caption">coverage days</span>
+                <span>{{ data.coverage_end }}</span>
+            </div>
+        </div>
+
+        <div class="glass-card activity-placeholder">
+            <img src="{{ url_for('static', filename='images/activity_right.jpg') }}" alt="" class="activity-placeholder-img">
+        </div>
+    </div>
+
+    <div class="histogram-row">
+        <div class="glass-card histogram-panel">
+            <canvas id="timeOfDayChart"></canvas>
+            <span class="histogram-caption">a histogram for time of the day</span>
+        </div>
+        <div class="glass-card histogram-panel">
+            <canvas id="weekdayChart"></canvas>
+            <span class="histogram-caption">weekday histogram</span>
+        </div>
+        <div class="glass-card histogram-panel">
+            <canvas id="repeatChart"></canvas>
+            <span class="histogram-caption">single listen vs repeated vs heavy rotation</span>
+        </div>
+    </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+    const timeOfDay = {{ data.time_of_day | tojson }};
+    const weekday = {{ data.weekday | tojson }};
+    const repeatTiers = {{ data.repeat_tiers | tojson }};
+
+    const barOptions = {
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#8D8FA0', font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: '#8D8FA0', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
+    };
+
+    new Chart(document.getElementById('timeOfDayChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Morning', 'Afternoon', 'Evening', 'Night'],
+            datasets: [{
+                data: [timeOfDay['Morning'], timeOfDay['Afternoon'], timeOfDay['Evening'], timeOfDay['Night']],
+                backgroundColor: ['#9FE11D', '#4ADE80', '#16A34A', '#14532D'],
+                borderRadius: 6,
+            }],
+        },
+        options: barOptions,
+    });
+
+    new Chart(document.getElementById('weekdayChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                data: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => weekday[d]),
+                backgroundColor: '#4ADE80',
+                borderRadius: 6,
+            }],
+        },
+        options: barOptions,
+    });
+
+    new Chart(document.getElementById('repeatChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Single', 'Repeated', 'Heavy rotation'],
+            datasets: [{
+                data: [repeatTiers['Single listen'], repeatTiers['Repeated'], repeatTiers['Heavy rotation']],
+                backgroundColor: ['#16A34A', '#4ADE80', '#9FE11D'],
+                borderRadius: 6,
+            }],
+        },
+        options: barOptions,
+    });
+</script>
+{% endblock %}

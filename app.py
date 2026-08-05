@@ -220,6 +220,70 @@ def bucket_venn_regions(short_set, medium_set, long_set):
     }
 
 
+# --- Listening Activity page queries ---
+#
+# All built fresh against recently_played, since none of the queries you've
+# sent so far cover this page. Important caveat, same as the Stability chart
+# on the Artists page: recently_played only ever holds Spotify's last ~50
+# plays per fetch, so these numbers only become meaningful once
+# collect_spotify_data.py has run repeatedly over time (e.g. a daily job)
+# rather than a single one-off run.
+
+ACTIVITY_KPI_QUERY = """
+    SELECT
+        COUNT(*) AS total_plays,
+        COUNT(DISTINCT rp.track_id) AS unique_tracks,
+        ROUND(SUM(t.duration_ms) / 60000.0, 0) AS listening_minutes,
+        ROUND(AVG(t.duration_ms) / 60000.0, 1) AS avg_track_length_minutes,
+        ROUND((COUNT(*) - COUNT(DISTINCT rp.track_id)) * 100.0 / NULLIF(COUNT(*), 0), 1) AS repeat_rate,
+        MIN(rp.played_at) AS coverage_start,
+        MAX(rp.played_at) AS coverage_end
+    FROM recently_played rp
+    JOIN tracks t ON rp.track_id = t.track_id
+    WHERE rp.user_id = %s;
+"""
+
+TIME_OF_DAY_QUERY = """
+    SELECT
+        CASE
+            WHEN HOUR(played_at) BETWEEN 5 AND 11 THEN 'Morning'
+            WHEN HOUR(played_at) BETWEEN 12 AND 16 THEN 'Afternoon'
+            WHEN HOUR(played_at) BETWEEN 17 AND 20 THEN 'Evening'
+            ELSE 'Night'
+        END AS time_bucket,
+        COUNT(*) AS play_count
+    FROM recently_played
+    WHERE user_id = %s
+    GROUP BY time_bucket;
+"""
+
+WEEKDAY_QUERY = """
+    SELECT DAYNAME(played_at) AS weekday, COUNT(*) AS play_count
+    FROM recently_played
+    WHERE user_id = %s
+    GROUP BY weekday, DAYOFWEEK(played_at)
+    ORDER BY DAYOFWEEK(played_at);
+"""
+
+REPEAT_TIER_QUERY = """
+    WITH track_play_counts AS (
+        SELECT track_id, COUNT(*) AS play_count
+        FROM recently_played
+        WHERE user_id = %s
+        GROUP BY track_id
+    )
+    SELECT
+        CASE
+            WHEN play_count = 1 THEN 'Single listen'
+            WHEN play_count BETWEEN 2 AND 4 THEN 'Repeated'
+            ELSE 'Heavy rotation'
+        END AS repeat_tier,
+        COUNT(*) AS track_count
+    FROM track_play_counts
+    GROUP BY repeat_tier;
+"""
+
+
 def country_code_to_flag(code):
     """Convert a 2-letter ISO country code (e.g. 'US') into a flag emoji,
     using the Unicode 'regional indicator' letter trick — no image needed."""
@@ -477,6 +541,71 @@ def genres_page():
         "venn_regions": venn_regions,
     }
     return render_template("genres.html", data=data)
+
+
+@app.route("/dashboard/activity")
+def activity_page():
+    sp_oauth = make_spotify_oauth()
+    token_info = sp_oauth.validate_token(sp_oauth.cache_handler.get_cached_token())
+
+    if not token_info:
+        return redirect(url_for("login"))
+
+    user_id = session.get("user_id")
+    if not user_id:
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user_id = get_user_profile(sp)["id"]
+        session["user_id"] = user_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(ACTIVITY_KPI_QUERY, (user_id,))
+    kpi_row = cursor.fetchone()
+
+    cursor.execute(TIME_OF_DAY_QUERY, (user_id,))
+    time_of_day_rows = cursor.fetchall()
+
+    cursor.execute(WEEKDAY_QUERY, (user_id,))
+    weekday_rows = cursor.fetchall()
+
+    cursor.execute(REPEAT_TIER_QUERY, (user_id,))
+    repeat_rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # Fill in zero for any bucket with no rows, so charts always show every
+    # category rather than silently omitting empty ones.
+    time_of_day = {"Morning": 0, "Afternoon": 0, "Evening": 0, "Night": 0}
+    for row in time_of_day_rows:
+        time_of_day[row["time_bucket"]] = row["play_count"]
+
+    weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    weekday = {day: 0 for day in weekday_order}
+    for row in weekday_rows:
+        weekday[row["weekday"]] = row["play_count"]
+
+    repeat_tiers = {"Single listen": 0, "Repeated": 0, "Heavy rotation": 0}
+    for row in repeat_rows:
+        repeat_tiers[row["repeat_tier"]] = row["track_count"]
+
+    def format_date(dt):
+        return f"{dt.month}-{dt.day}-{dt.year}" if dt else "—"
+
+    data = {
+        "streams": kpi_row["total_plays"] if kpi_row else 0,
+        "unique_tracks": kpi_row["unique_tracks"] if kpi_row else 0,
+        "listening_minutes": kpi_row["listening_minutes"] if kpi_row else 0,
+        "avg_track_length": kpi_row["avg_track_length_minutes"] if kpi_row else 0,
+        "repeat_rate": kpi_row["repeat_rate"] if kpi_row else 0,
+        "coverage_start": format_date(kpi_row["coverage_start"]) if kpi_row else "—",
+        "coverage_end": format_date(kpi_row["coverage_end"]) if kpi_row else "—",
+        "time_of_day": time_of_day,
+        "weekday": weekday,
+        "repeat_tiers": repeat_tiers,
+    }
+    return render_template("activity.html", data=data)
 
 
 @app.route("/logout")

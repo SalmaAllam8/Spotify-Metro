@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Your Playlists — Listening Log{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block content %}
+<video class="dashboard-bg-video" autoplay muted loop playsinline>
+    <source src="{{ url_for('static', filename='videos/background.mp4') }}" type="video/mp4">
+</video>
+<div class="dashboard-bg-overlay"></div>
+
+<main class="dashboard">
+
+    <h1 class="page-title">Your Playlists</h1>
+
+    <div class="curation-stats-row">
+        <div class="curation-stat">
+            <span class="curation-stat-label">Self-Curated (Owned)</span>
+            <span class="curation-stat-value">{{ data.curation_stats['Self-Curated (Owned)'].playlist_count }}</span>
+            <span class="curation-stat-sub">total tracks: {{ data.curation_stats['Self-Curated (Owned)'].total_tracks }}</span>
+        </div>
+        <div class="curation-stat">
+            <span class="curation-stat-label">Spotify Official / Editorial</span>
+            <span class="curation-stat-value">{{ data.curation_stats['Spotify Official / Editorial'].playlist_count }}</span>
+            <span class="curation-stat-sub">total tracks: {{ data.curation_stats['Spotify Official / Editorial'].total_tracks }}</span>
+        </div>
+        <div class="curation-stat">
+            <span class="curation-stat-label">External / Friend Curated</span>
+            <span class="curation-stat-value">{{ data.curation_stats['External / Friend Curated'].playlist_count }}</span>
+            <span class="curation-stat-sub">total tracks: {{ data.curation_stats['External / Friend Curated'].total_tracks }}</span>
+        </div>
+    </div>
+
+    <div class="playlists-hero">
+        <div class="glass-card playlist-panel radar-panel">
+            <h2 class="side-panel-title">Genre Diversity — Top 5 Playlists</h2>
+            <canvas id="diversityRadar"></canvas>
+        </div>
+
+        <div class="glass-card playlist-panel">
+            <h2 class="side-panel-title">Playlist Mood</h2>
+            <canvas id="moodChart"></canvas>
+        </div>
+    </div>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+    const radarPlaylists = {{ data.radar_playlists | tojson }};
+    const moodCounts = {{ data.mood_counts | tojson }};
+
+    new Chart(document.getElementById('diversityRadar'), {
+        type: 'radar',
+        data: {
+            labels: radarPlaylists.map(p => p.name),
+            datasets: [{
+                label: 'Genre diversity ratio',
+                data: radarPlaylists.map(p => p.genre_diversity_ratio),
+                backgroundColor: 'rgba(159, 225, 29, 0.18)',
+                borderColor: '#9FE11D',
+                pointBackgroundColor: '#9FE11D',
+            }],
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(255,255,255,0.08)' },
+                    grid: { color: 'rgba(255,255,255,0.08)' },
+                    pointLabels: { color: '#8D8FA0', font: { size: 10 } },
+                    ticks: { display: false },
+                },
+            },
+        },
+    });
+
+    new Chart(document.getElementById('moodChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(moodCounts),
+            datasets: [{
+                data: Object.values(moodCounts),
+                backgroundColor: ['#9FE11D', '#4ADE80', '#16A34A', '#14532D'],
+                borderRadius: 6,
+            }],
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#8D8FA0', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { ticks: { color: '#8D8FA0', font: { size: 10 } }, grid: { display: false } },
+            },
+        },
+    });
+</script>
+{% endblock %}

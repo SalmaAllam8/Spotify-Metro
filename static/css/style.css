@@ -1108,3 +1108,61 @@ body.dashboard-page {
     .activity-hero { flex-direction: column; width: 100%; margin-left: 0; padding: 0; }
     .histogram-row { grid-template-columns: 1fr; }
 }
+
+/* ---------- Playlists page ---------- */
+
+.curation-stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+}
+
+.curation-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.curation-stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.curation-stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.curation-stat-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.playlists-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.playlist-panel {
+    padding: 1.6rem;
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.playlist-panel canvas {
+    flex: 1;
+    width: 100% !important;
+}
+
+@media (max-width: 800px) {
+    .playlists-hero { grid-template-columns: 1fr; }
+    .playlist-panel { height: 360px; }
+}

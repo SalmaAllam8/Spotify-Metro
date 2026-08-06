@@ -283,6 +283,67 @@ REPEAT_TIER_QUERY = """
     GROUP BY repeat_tier;
 """
 
+# --- Playlists page queries ---
+#
+# Both are your queries, fixed. See the earlier chat message for the full
+# reasoning — short version: query 1 was missing WHERE user_id entirely;
+# query 2 grouped by user_id (looked safe) but its "% of library" subquery
+# counted every user's playlists as the denominator, not just the current
+# user's — a bug that produces a believable-looking wrong number rather
+# than an obviously broken one.
+#
+# No LIMIT here — pulled once for the whole page, then split in Python into
+# "top 5 self-curated by genre diversity" (radar chart) and "all playlists,
+# grouped by vibe type" (mood bar chart), rather than querying twice.
+
+PLAYLIST_DIVERSITY_QUERY = """
+    SELECT
+        p.playlist_id,
+        p.name AS playlist_name,
+        p.owner_id,
+        p.user_id,
+        COUNT(DISTINCT pt.track_id) AS total_tracks,
+        COUNT(DISTINCT ta.artist_id) AS unique_artists,
+        COUNT(DISTINCT ag.genre_name) AS unique_genres,
+        ROUND(COUNT(DISTINCT ta.artist_id) * 1.0 / NULLIF(COUNT(DISTINCT pt.track_id), 0), 2) AS artist_diversity_ratio,
+        ROUND(COUNT(DISTINCT ag.genre_name) * 1.0 / NULLIF(COUNT(DISTINCT pt.track_id), 0), 2) AS genre_diversity_ratio,
+        CASE
+            WHEN COUNT(DISTINCT ag.genre_name) >= 15 THEN 'Eclectic / Wide Blend'
+            WHEN COUNT(DISTINCT ag.genre_name) BETWEEN 6 AND 14 THEN 'Balanced Theme'
+            WHEN COUNT(DISTINCT ag.genre_name) BETWEEN 1 AND 5 THEN 'Laser-Focused / Single Vibe'
+            ELSE 'Empty / Unassigned'
+        END AS playlist_vibe_type
+    FROM playlists p
+    JOIN playlist_tracks pt ON p.playlist_id = pt.playlist_id
+    JOIN tracks t ON pt.track_id = t.track_id
+    JOIN track_artists ta ON t.track_id = ta.track_id
+    LEFT JOIN artist_genres ag ON ta.artist_id = ag.artist_id
+    WHERE p.user_id = %s
+    GROUP BY p.playlist_id, p.name, p.owner_id, p.user_id
+    ORDER BY unique_genres DESC;
+"""
+
+CURATION_SOURCE_QUERY = """
+    SELECT
+        CASE
+            WHEN p.owner_id = p.user_id THEN 'Self-Curated (Owned)'
+            WHEN LOWER(p.owner_id) IN ('spotify', 'spotifycharts') THEN 'Spotify Official / Editorial'
+            ELSE 'External / Friend Curated'
+        END AS curation_source,
+        COUNT(DISTINCT p.playlist_id) AS playlist_count,
+        SUM(p.track_count) AS total_tracks,
+        ROUND(AVG(p.track_count), 1) AS avg_tracks_per_playlist,
+        ROUND(
+            (COUNT(DISTINCT p.playlist_id) * 100.0) /
+            (SELECT COUNT(*) FROM playlists WHERE user_id = %s),
+            1
+        ) AS pct_of_library_playlists
+    FROM playlists p
+    WHERE p.user_id = %s
+    GROUP BY curation_source
+    ORDER BY playlist_count DESC;
+"""
+
 
 def country_code_to_flag(code):
     """Convert a 2-letter ISO country code (e.g. 'US') into a flag emoji,
@@ -606,6 +667,65 @@ def activity_page():
         "repeat_tiers": repeat_tiers,
     }
     return render_template("activity.html", data=data)
+
+
+@app.route("/dashboard/playlists")
+def playlists_page():
+    sp_oauth = make_spotify_oauth()
+    token_info = sp_oauth.validate_token(sp_oauth.cache_handler.get_cached_token())
+
+    if not token_info:
+        return redirect(url_for("login"))
+
+    user_id = session.get("user_id")
+    if not user_id:
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user_id = get_user_profile(sp)["id"]
+        session["user_id"] = user_id
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(CURATION_SOURCE_QUERY, (user_id, user_id))
+    curation_rows = cursor.fetchall()
+
+    cursor.execute(PLAYLIST_DIVERSITY_QUERY, (user_id,))
+    playlist_rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    curation_sources = ["Self-Curated (Owned)", "Spotify Official / Editorial", "External / Friend Curated"]
+    curation_stats = {src: {"playlist_count": 0, "total_tracks": 0} for src in curation_sources}
+    for row in curation_rows:
+        curation_stats[row["curation_source"]] = {
+            "playlist_count": row["playlist_count"],
+            "total_tracks": row["total_tracks"] or 0,
+        }
+
+    # Top 5 self-curated playlists by genre diversity ratio, for the radar chart
+    self_curated = [r for r in playlist_rows if r["owner_id"] == r["user_id"]]
+    top_5_by_diversity = sorted(
+        self_curated, key=lambda r: r["genre_diversity_ratio"] or 0, reverse=True
+    )[:5]
+
+    # Mood = playlist_vibe_type bucket counts across ALL playlists (not just
+    # self-curated) — this is literally your vibe_type CASE, just counted
+    # per bucket instead of shown per playlist.
+    vibe_types = ["Eclectic / Wide Blend", "Balanced Theme", "Laser-Focused / Single Vibe", "Empty / Unassigned"]
+    mood_counts = {vibe: 0 for vibe in vibe_types}
+    for row in playlist_rows:
+        mood_counts[row["playlist_vibe_type"]] += 1
+
+    data = {
+        "curation_stats": curation_stats,
+        "radar_playlists": [
+            {"name": r["playlist_name"], "genre_diversity_ratio": r["genre_diversity_ratio"] or 0}
+            for r in top_5_by_diversity
+        ],
+        "mood_counts": mood_counts,
+    }
+    return render_template("playlists.html", data=data)
 
 
 @app.route("/logout")

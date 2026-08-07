@@ -56,36 +56,244 @@
     </div>
 
 </main>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
 <script>
     const radarPlaylists = {{ data.radar_playlists | tojson }};
     const moodCounts = {{ data.mood_counts | tojson }};
 
-    new Chart(document.getElementById('diversityRadar'), {
-        type: 'radar',
-        data: {
-            labels: radarPlaylists.map(p => p.name),
-            datasets: [{
-                label: 'Genre diversity ratio',
-                data: radarPlaylists.map(p => p.genre_diversity_ratio),
-                backgroundColor: 'rgba(159, 225, 29, 0.18)',
-                borderColor: '#9FE11D',
-                pointBackgroundColor: '#9FE11D',
-            }],
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                r: {
-                    angleLines: { color: 'rgba(255,255,255,0.08)' },
-                    grid: { color: 'rgba(255,255,255,0.08)' },
-                    pointLabels: { color: '#8D8FA0', font: { size: 10 } },
-                    ticks: { display: false },
-                },
+
+    // ==========================================
+    // CUSTOM RADAR LABELS
+    // ==========================================
+
+    const customRadarLabels = {
+        id: 'customRadarLabels',
+
+        afterDraw(chart) {
+
+            const scale = chart.scales.r;
+            const ctx = chart.ctx;
+
+            if (!scale) return;
+
+            const labels = chart.data.labels;
+
+            ctx.save();
+
+            labels.forEach((label, i) => {
+
+                // Get the angle of the radar axis
+                const angle = scale.getIndexAngle(i);
+
+                // Distance between radar and label
+                // Smaller number = closer to radar
+                const distance = scale.drawingArea + 25;
+
+                // Calculate label position
+                const x =
+                    scale.xCenter +
+                    Math.cos(angle) * distance;
+
+                const y =
+                    scale.yCenter +
+                    Math.sin(angle) * distance;
+
+
+                // ----------------------------------
+                // Rotate label
+                // ----------------------------------
+
+                let rotation = angle + Math.PI / 2;
+
+                // Prevent upside-down text
+                if (
+                    rotation > Math.PI / 2 &&
+                    rotation < Math.PI * 1.5
+                ) {
+                    rotation += Math.PI;
+                }
+
+
+                ctx.save();
+
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+
+
+                // ----------------------------------
+                // Label styling
+                // ----------------------------------
+
+                ctx.fillStyle = '#8D8FA0';
+
+                ctx.font = '13px sans-serif';
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+
+                // Draw label
+                ctx.fillText(label, 0, 0);
+
+                ctx.restore();
+            });
+
+            ctx.restore();
+        }
+    };
+
+
+    // ==========================================
+    // GENRE DIVERSITY RADAR
+    // ==========================================
+
+    new Chart(
+        document.getElementById('diversityRadar'),
+        {
+
+            type: 'radar',
+
+
+            // ======================================
+            // DATA
+            // ======================================
+
+            data: {
+
+                labels: radarPlaylists.map(
+                    p => p.name
+                ),
+
+                datasets: [{
+
+                    label: 'Genre diversity ratio',
+
+                    data: radarPlaylists.map(
+                        p => p.genre_diversity_ratio
+                    ),
+
+                    backgroundColor:
+                        'rgba(159, 225, 29, 0.18)',
+
+                    borderColor:
+                        '#9FE11D',
+
+                    pointBackgroundColor:
+                        '#9FE11D',
+
+                    pointBorderColor:
+                        '#9FE11D',
+
+                    pointRadius: 4,
+
+                    borderWidth: 2
+                }]
             },
-        },
-    });
+
+
+            // ======================================
+            // OPTIONS
+            // ======================================
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+
+                // Give the labels some room
+                layout: {
+
+                    padding: {
+                        top: 0.1,
+                        right: 25,
+                        bottom: 25,
+                        left: 25
+                    }
+                },
+
+
+                // ==================================
+                // PLUGINS
+                // ==================================
+
+                plugins: {
+
+                    legend: {
+                        display: false
+                    }
+                },
+
+
+                // ==================================
+                // RADAR SCALE
+                // ==================================
+
+                scales: {
+
+                    r: {
+
+                        // --------------------------------
+                        // Make the actual radar smaller
+                        // --------------------------------
+
+                        afterFit: function(scale) {
+
+                            scale.drawingArea =
+                                Math.min(
+                                    scale.drawingArea,
+                                    130
+                                );
+                        },
+
+
+                        // Hide Chart.js default labels
+                        pointLabels: {
+                            display: false
+                        },
+
+
+                        // Radar axis lines
+                        angleLines: {
+
+                            color:
+                                'rgba(255,255,255,0.08)'
+                        },
+
+
+                        // Radar grid
+                        grid: {
+
+                            color:
+                                'rgba(255,255,255,0.08)'
+                        },
+
+
+                        // Hide numbers around radar
+                        ticks: {
+
+                            display: false
+                        },
+
+
+                        suggestedMin: 0
+                    }
+                }
+            },
+
+
+            // ======================================
+            // CUSTOM LABEL PLUGIN
+            // ======================================
+
+            plugins: [
+                customRadarLabels
+            ]
+        }
+    );
+
 
     new Chart(document.getElementById('moodChart'), {
         type: 'bar',
@@ -101,7 +309,7 @@
             indexAxis: 'y',
             plugins: { legend: { display: false } },
             scales: {
-                x: { ticks: { color: '#8D8FA0', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                x: { ticks: { color: '#ffffff', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.06)' } },
                 y: { ticks: { color: '#8D8FA0', font: { size: 10 } }, grid: { display: false } },
             },
         },

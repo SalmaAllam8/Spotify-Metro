@@ -323,6 +323,14 @@ PLAYLIST_DIVERSITY_QUERY = """
     ORDER BY unique_genres DESC;
 """
 
+BIGGEST_PLAYLIST_QUERY = """
+    SELECT name, image_url, track_count
+    FROM playlists
+    WHERE user_id = %s AND owner_id = user_id
+    ORDER BY track_count DESC
+    LIMIT 1;
+"""
+
 CURATION_SOURCE_QUERY = """
     SELECT
         CASE
@@ -692,6 +700,9 @@ def playlists_page():
     cursor.execute(PLAYLIST_DIVERSITY_QUERY, (user_id,))
     playlist_rows = cursor.fetchall()
 
+    cursor.execute(BIGGEST_PLAYLIST_QUERY, (user_id,))
+    biggest_playlist = cursor.fetchone()
+
     cursor.close()
     conn.close()
 
@@ -719,6 +730,7 @@ def playlists_page():
 
     data = {
         "curation_stats": curation_stats,
+        "biggest_playlist": biggest_playlist,
         "radar_playlists": [
             {"name": r["playlist_name"], "genre_diversity_ratio": r["genre_diversity_ratio"] or 0}
             for r in top_5_by_diversity

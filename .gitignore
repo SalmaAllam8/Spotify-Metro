@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 spotify_data.json
 .idea/
+.cache

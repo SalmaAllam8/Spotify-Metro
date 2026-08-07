@@ -113,7 +113,7 @@ static/
 - **`recently_played` is a snapshot, not a history.** Spotify's API only ever
   returns your last ~50 plays per request. Anything relying on this table
   (Stability chart, Listening Activity histograms, repeat-rate metrics) only
-  becomes meaningful once `collect_spotify_data.py` has been run repeatedly
+  becomes meaningful once `spotify.py` has been run repeatedly
   over time — e.g. a daily scheduled job — so the table actually accumulates
   history rather than getting overwritten with the same recent snapshot.
 - **MySQL data goes stale.** The live login flow doesn't call the loader

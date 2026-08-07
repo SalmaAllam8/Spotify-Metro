@@ -30,25 +30,24 @@
         </div>
     </div>
 
-
-
     <div class="playlists-hero">
         <div class="glass-card playlist-panel radar-panel">
             <h2 class="side-panel-title">Genre Diversity — Top 5 Playlists</h2>
             <canvas id="diversityRadar"></canvas>
         </div>
-            {% if data.biggest_playlist %}
-    <div class="biggest-playlist-card">
-        {% if data.biggest_playlist.image_url %}
-            <img src="{{ data.biggest_playlist.image_url }}" alt="{{ data.biggest_playlist.name }}" class="biggest-playlist-img">
-        {% else %}
-            <div class="biggest-playlist-img biggest-playlist-img--placeholder"></div>
+
+        {% if data.biggest_playlist %}
+        <div class="biggest-playlist-card">
+            {% if data.biggest_playlist.image_url %}
+                <img src="{{ data.biggest_playlist.image_url }}" alt="{{ data.biggest_playlist.name }}" class="biggest-playlist-img">
+            {% else %}
+                <div class="biggest-playlist-img biggest-playlist-img--placeholder"></div>
+            {% endif %}
+            <span class="biggest-playlist-name">{{ data.biggest_playlist.name }}</span>
+            <span class="biggest-playlist-count">{{ data.biggest_playlist.track_count }} tracks</span>
+            <span class="biggest-playlist-caption">Your biggest playlist</span>
+        </div>
         {% endif %}
-        <span class="biggest-playlist-name">{{ data.biggest_playlist.name }}</span>
-        <span class="biggest-playlist-count">{{ data.biggest_playlist.track_count }} tracks</span>
-        <span class="biggest-playlist-caption">Your biggest playlist</span>
-    </div>
-    {% endif %}
 
         <div class="glass-card playlist-panel">
             <h2 class="side-panel-title">Playlist Mood</h2>

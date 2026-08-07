@@ -1111,6 +1111,7 @@ body.dashboard-page {
 
 /* ---------- Playlists page ---------- */
 
+
 .curation-stats-row {
     display: flex;
     justify-content: center;
@@ -1147,16 +1148,16 @@ body.dashboard-page {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4rem;
-    margin: 0 auto 2.5rem;
+    justify-self: center;
+    gap: 0.5rem;
     width: fit-content;
 }
 
 .biggest-playlist-img,
 .biggest-playlist-img--placeholder {
-    width: 160px;
-    height: 160px;
-    border-radius: 16px;
+    width: 210px;
+    height: 210px;
+    border-radius: 18px;
     object-fit: cover;
     border: 2px solid rgba(159, 225, 29, 0.4);
     background: var(--surface-2);
@@ -1165,13 +1166,13 @@ body.dashboard-page {
 .biggest-playlist-name {
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     margin-top: 0.3rem;
 }
 
 .biggest-playlist-count {
     font-family: var(--font-mono);
-    font-size: 1.4rem;
+    font-size: 1.7rem;
     font-weight: 700;
     color: var(--accent);
 }
@@ -1183,14 +1184,14 @@ body.dashboard-page {
 
 .playlists-hero {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     gap: 1.5rem;
-    align-items: stretch;
 }
 
 .playlist-panel {
-    padding: 1.6rem;
-    height: 420px;
+    padding: 1.8rem;
+    height: 500px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1205,3 +1206,4 @@ body.dashboard-page {
     .playlists-hero { grid-template-columns: 1fr; }
     .playlist-panel { height: 360px; }
 }
+

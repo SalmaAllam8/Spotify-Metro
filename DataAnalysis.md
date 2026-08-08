@@ -128,7 +128,7 @@ The data model supports four main analytical areas:
 
 ---
 
-### 📋 Playlist Analysis
+###  Playlist Analysis
 
 **Tables Used:**
 * `playlists`

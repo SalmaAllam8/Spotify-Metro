@@ -31,7 +31,10 @@ The analysis is divided into four main areas:
 A separate overview page summarizes the most important insights.
 
 ---
+## Project Flow 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/cc1efde0-78c3-4fb6-8ca0-576684760a30" />
 
+--
 #  Spotify Data Model
 
 The Spotify data was organized into a relational database using **MySQL**.
